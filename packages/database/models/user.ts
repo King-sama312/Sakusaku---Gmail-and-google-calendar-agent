@@ -27,7 +27,7 @@ export const passwordsTable = pgTable("passwords", {
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" })
     .unique(), // one password record per user
-  hash: text("hash").notNull(), // bcrypt string
+  hash: text("hash"), // bcrypt string
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
 });
@@ -50,7 +50,7 @@ export const oauthAccountsTable = pgTable(
   (table) => ({
     // One Google account can only belong to one user
     providerAccountUnique: unique().on(table.provider, table.providerAccountId),
-  })
+  }),
 );
 
 // ── Server-side sessions (recommended over JWT) ──
@@ -70,39 +70,33 @@ export const sessionsTable = pgTable(
   (table) => ({
     tokenIdx: index().on(table.token),
     userIdIdx: index().on(table.userId),
-  })
+  }),
 );
 
 // ── Email verification tokens ──
-export const emailVerificationTokensTable = pgTable(
-  "email_verification_tokens",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" })
-      .unique(), // one active verification flow per user
-    tokenHash: text("token_hash").notNull(), // sha256 of the token sent via email
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow(),
-    usedAt: timestamp("used_at"),
-  }
-);
+export const emailVerificationTokensTable = pgTable("email_verification_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" })
+    .unique(), // one active verification flow per user
+  tokenHash: text("token_hash").notNull(), // sha256 of the token sent via email
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  usedAt: timestamp("used_at"),
+});
 
 // ── Password reset tokens ──
-export const passwordResetTokensTable = pgTable(
-  "password_reset_tokens",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
-    tokenHash: text("token_hash").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow(),
-    usedAt: timestamp("used_at"),
-  }
-);
+export const passwordResetTokensTable = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  usedAt: timestamp("used_at"),
+});
 
 // Types
 export type SelectUser = typeof usersTable.$inferSelect;
