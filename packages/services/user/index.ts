@@ -195,7 +195,13 @@ class UserService {
 
     const { token } = await this.generateUserToken({ id: userId });
 
-    return { token, userId };
+    return {
+      token,
+      userId,
+      accessToken: tokens.access_token ?? null,
+      refreshToken: tokens.refresh_token ?? null,
+      expiresIn: (tokens as unknown as { expires_in?: number }).expires_in ?? null,
+    };
   }
 
   public async createUserwithEmailAndPassword(payload: CreateUserWithEmailAndPasswordInputType) {
