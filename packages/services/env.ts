@@ -13,6 +13,8 @@ const envSchema = z.object({
     .default(31536000000)
     .describe("session duration in ms"),
   NODE_ENV: z.enum(["development", "prod", "production"]).default("development"),
+  RESEND_API_KEY: z.string().describe("Resend API key for sending emails"),
+  FRONTEND_URL: z.string().default("http://localhost:3000").describe("Frontend URL for email links"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {

@@ -1,31 +1,42 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+"use client"
 
-interface Props {
-  searchParams: Promise<{ token?: string; error?: string }>;
+import { useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useSetAuthCookie } from "~/hooks/api/auth"
+
+export default function AuthCallbackPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { setAuthCookieAsync, isSuccess, error } = useSetAuthCookie()
+
+  const token = searchParams.get("token")
+  const errorParam = searchParams.get("error")
+
+  useEffect(() => {
+    if (errorParam) {
+      router.replace(`/signup?error=${errorParam}`)
+      return
+    }
+
+    if (!token) {
+      router.replace("/signup?error=missing_token")
+      return
+    }
+
+    setAuthCookieAsync({ token })
+  }, [token, errorParam, setAuthCookieAsync, router])
+
+  useEffect(() => {
+    if (isSuccess) {
+      router.replace("/dashboard")
+    }
+  }, [isSuccess, router])
+
+  return (
+    <main className="flex min-h-screen items-center justify-center">
+      <p className="text-muted-foreground">
+        {error ? "Authentication failed. Redirecting..." : "Completing sign in..."}
+      </p>
+    </main>
+  )
 }
-
-export default async function AuthCallbackPage({ searchParams }: Props) {
-  const { token, error } = await searchParams;
-
-  if (error) {
-    redirect(`/signup?error=${error}`);
-  }
-
-  if (!token) {
-    redirect("/signup?error=missing_token");
-  }
-
-  const cookieStore = await cookies();
-  cookieStore.set("session", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  redirect("/");
-}
-
-export const dynamic = "force-dynamic";

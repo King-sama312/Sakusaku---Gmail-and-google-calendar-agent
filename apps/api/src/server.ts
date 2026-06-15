@@ -7,10 +7,13 @@ import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to
 import { apiReference } from "@scalar/express-api-reference";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
+import UserService from "@repo/services/user";
 
 import { env } from "./env";
 
 import cookieParser from "cookie-parser";
+
+const userService = new UserService();
 
 export const app = express();
 app.set("trust proxy", 1);
@@ -46,6 +49,22 @@ app.get("/openapi.json", (req, res) => {
 
 logger.debug(`docs: ${env.BASE_URL}/docs`);
 app.use("/docs", apiReference({ url: "/openapi.json" }));
+
+app.get("/auth/google/callback", async (req, res) => {
+  const { code } = req.query;
+
+  if (!code || typeof code !== "string") {
+    return res.redirect(`${env.FRONTEND_URL}/signup?error=missing_code`);
+  }
+
+  try {
+    const { token } = await userService.googleSignup(code);
+    res.redirect(`${env.FRONTEND_URL}/auth/callback?token=${token}`);
+  } catch (error) {
+    logger.error("Google OAuth callback failed", { error });
+    res.redirect(`${env.FRONTEND_URL}/signup?error=oauth_failed`);
+  }
+});
 
 app.use(
   "/api",

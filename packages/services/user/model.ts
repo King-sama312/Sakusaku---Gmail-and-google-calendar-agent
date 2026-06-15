@@ -33,3 +33,9 @@ export const signInUserWithEmailAndPasswordInput = z.object({
 export type SignInUserWithEmailAndPasswordInputType = z.infer<
   typeof signInUserWithEmailAndPasswordInput
 >;
+
+export const signOutInput = z.object({
+  token: z.string().describe("JWT token of the user session to sign out"),
+});
+
+export type SignOutInputType = z.infer<typeof signOutInput>;

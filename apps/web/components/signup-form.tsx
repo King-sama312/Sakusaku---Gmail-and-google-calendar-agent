@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
@@ -16,7 +18,7 @@ import {
   FormMessage,
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
-import { useSignup, useGoogleAuth } from "~/hooks/api/auth";
+import { useSignup, useGoogleAuth, useSendVerificationEmail } from "~/hooks/api/auth";
 
 const signupFormSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(80),
@@ -32,7 +34,9 @@ interface SignupFormProps {
 }
 
 function SignupForm({ className, onSubmit }: SignupFormProps) {
-  const { createUserWithEmailAndPasswordAsync } = useSignup();
+  const router = useRouter();
+  const { createUserWithEmailAndPasswordAsync, isSuccess: signupSuccess } = useSignup();
+  const { sendVerificationEmailAsync, isPending: isResending } = useSendVerificationEmail();
   const { signInWithGoogle, isLoading: isGoogleLoading } = useGoogleAuth();
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
@@ -43,12 +47,47 @@ function SignupForm({ className, onSubmit }: SignupFormProps) {
     },
   });
 
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const watchedEmail = form.watch("email");
+
   async function handleSubmit(values: SignupFormValues) {
-    await createUserWithEmailAndPasswordAsync({
+    const { id } = await createUserWithEmailAndPasswordAsync({
       email: values.email,
       fullName: values.fullName,
       password: values.password,
     });
+    setCreatedUserId(id);
+  }
+
+  if (signupSuccess) {
+    return (
+      <Card className={cn("w-full max-w-md", className)}>
+        <CardHeader>
+          <CardTitle>Check your email</CardTitle>
+          <CardDescription>
+            We&apos;ve sent a verification email to <strong>{watchedEmail}</strong>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Click the link in the email to verify your account, then sign in.
+          </p>
+          {createdUserId && (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={isResending}
+              onClick={() => sendVerificationEmailAsync({ userId: createdUserId })}
+            >
+              {isResending ? "Sending..." : "Resend email"}
+            </Button>
+          )}
+          <Button className="w-full" onClick={() => router.push("/login")}>
+            Go to login
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
