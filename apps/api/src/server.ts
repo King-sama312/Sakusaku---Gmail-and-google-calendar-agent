@@ -8,6 +8,8 @@ import { apiReference } from "@scalar/express-api-reference";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
 import UserService from "@repo/services/user";
+import { corsair } from "@repo/services/corsair";
+import { processWebhook } from "corsair";
 
 import { env } from "./env";
 
@@ -63,6 +65,23 @@ app.get("/auth/google/callback", async (req, res) => {
   } catch (error) {
     logger.error("Google OAuth callback failed", { error });
     res.redirect(`${env.FRONTEND_URL}/signup?error=oauth_failed`);
+  }
+});
+
+app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const result = await processWebhook(
+      corsair,
+      Object.fromEntries(Object.entries(req.headers).map(([k, v]) => [k, String(v)])),
+      req.body,
+      { tenantId: url.searchParams.get("tenantId") ?? undefined },
+    );
+    const statusCode = result.response?.statusCode ?? (result.response?.success ? 200 : 500);
+    res.status(statusCode).json(result.response?.data ?? { success: result.response?.success ?? false });
+  } catch (error) {
+    logger.error("Corsair webhook error", { error });
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 });
 

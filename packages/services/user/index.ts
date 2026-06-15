@@ -82,7 +82,16 @@ class UserService {
       const url = googleOAuth2Client.generateAuthUrl({
         access_type: "offline",
         prompt: "consent",
-        scope: ["openid", "profile", "email"],
+        scope: [
+          "openid",
+          "profile",
+          "email",
+          "https://www.googleapis.com/auth/gmail.readonly",
+          "https://www.googleapis.com/auth/gmail.send",
+          "https://www.googleapis.com/auth/gmail.modify",
+          "https://www.googleapis.com/auth/gmail.compose",
+          "https://www.googleapis.com/auth/calendar",
+        ],
       });
       supportedAuthenticationProviders.push({
         provider: "GOOGLE_OAUTH",

@@ -29,6 +29,7 @@
     "@trpc/server": "^11.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "corsair": "^0.1.76",
     "express": "^5.2.1",
     "trpc-to-openapi": "^3.1.0",
     "zod": "^4.3.5"

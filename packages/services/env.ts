@@ -15,6 +15,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "prod", "production"]).default("development"),
   RESEND_API_KEY: z.string().describe("Resend API key for sending emails"),
   FRONTEND_URL: z.string().default("http://localhost:3000").describe("Frontend URL for email links"),
+  DATABASE_URL: z.string().describe("Database URL for postgres connection"),
+  CORSAIR_KEK: z.string().describe("Key Encryption Key for Corsair credential encryption"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {
