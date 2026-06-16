@@ -9,6 +9,8 @@ import { apiReference } from "@scalar/express-api-reference";
 import { serverRouter, createContext } from "@repo/trpc/server";
 import UserService from "@repo/services/user";
 import { env as servicesEnv } from "@repo/services/env";
+import { db, eq } from "@repo/database";
+import { usersTable } from "@repo/database/schema";
 import { setupUserWebhooks } from "@repo/services/webhooks";
 import { processWebhook } from "corsair";
 import { corsair } from "@repo/services/corsair";
@@ -59,12 +61,59 @@ app.use("/docs", apiReference({ url: "/openapi.json" }));
 
 app.use("/auth", createAuthRouter());
 
+function isGmailPubsubPayload(body: unknown): boolean {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "message" in body &&
+    typeof (body as Record<string, unknown>).message === "object" &&
+    (body as Record<string, unknown>).message !== null &&
+    "data" in ((body as Record<string, unknown>).message as Record<string, unknown>)
+  );
+}
+
+async function resolveTenantIdFromGmailPubsub(body: unknown): Promise<string | null> {
+  if (!isGmailPubsubPayload(body)) return null;
+
+  const data = ((body as Record<string, unknown>).message as Record<string, unknown>)
+    .data as string;
+  try {
+    const decoded = Buffer.from(data, "base64").toString("utf8");
+    const payload = JSON.parse(decoded) as { emailAddress?: string };
+    const email = payload.emailAddress;
+    if (!email) return null;
+
+    const user = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1);
+
+    return user[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   const start = Date.now();
   const webhookId = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   try {
     const url = new URL(req.url, `${WEBHOOK_BASE_URL}`);
-    const tenantId = url.searchParams.get("tenantId") ?? undefined;
+    let tenantId = url.searchParams.get("tenantId") ?? undefined;
+
+    const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : req.body;
+    const body = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    if (!tenantId) {
+      tenantId = (await resolveTenantIdFromGmailPubsub(body)) ?? undefined;
+    }
+
+    if (!tenantId) {
+      logger.warn("Webhook received without resolvable tenant", { webhookId });
+      return res.status(400).json({ error: "Missing or unresolvable tenant" });
+    }
+
     logger.info("Webhook received", {
       webhookId,
       tenantId,
@@ -74,7 +123,7 @@ app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, 
     const result = await processWebhook(
       corsair,
       Object.fromEntries(Object.entries(req.headers).map(([k, v]) => [k, String(v)])),
-      req.body,
+      body,
       { tenantId },
     );
     const duration = Date.now() - start;

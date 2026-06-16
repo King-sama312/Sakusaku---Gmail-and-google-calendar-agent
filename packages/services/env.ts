@@ -16,6 +16,7 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default("http://localhost:3000").describe("Frontend URL for redirects"),
   DATABASE_URL: z.string().describe("Database URL for postgres connection"),
   CORSAIR_KEK: z.string().describe("Key Encryption Key for Corsair credential encryption"),
+  GMAIL_PUBSUB_TOPIC: z.string().describe("GCP Pub/Sub topic for Gmail push notifications"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {

@@ -75,7 +75,7 @@ export async function setupGmailWatch(userId: string, webhookBaseUrl: string) {
     data: {
       labelIds: ["INBOX"],
       labelFilterAction: "include",
-      topicName: undefined,
+      topicName: env.GMAIL_PUBSUB_TOPIC,
     },
   });
   logger.info("Gmail watch created", {

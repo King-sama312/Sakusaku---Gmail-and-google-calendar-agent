@@ -4,12 +4,14 @@ import { logger } from "@repo/logger";
 import { env as servicesEnv } from "@repo/services/env";
 import { corsair, setTenantGoogleTokens } from "@repo/services/corsair";
 import { googleOAuth2Client } from "@repo/services/clients/google-oauth";
+import { setupUserWebhooks } from "@repo/services/webhooks";
 import UserService from "@repo/services/user";
 import { setupCorsair } from "corsair";
 import { env } from "../env";
 
 const userService = new UserService();
 const isProduction = env.NODE_ENV === "prod";
+const WEBHOOK_BASE_URL = env.WEBHOOK_BASE_URL ?? env.BASE_URL;
 
 const GOOGLE_OAUTH_SCOPES = [
   "openid",
@@ -106,6 +108,12 @@ export function createAuthRouter(): Router {
       try {
         await setupCorsair(corsair, { tenantId: userId });
         await setTenantGoogleTokens(userId, { accessToken, refreshToken, expiresIn });
+
+        // Subscribe the user to Gmail (Pub/Sub) and Calendar push notifications.
+        // Non-fatal: if the pub/sub topic or ngrok tunnel isn't ready, auth still succeeds.
+        setupUserWebhooks(userId, WEBHOOK_BASE_URL).catch((setupErr) => {
+          logger.error("Auto webhook setup failed", { error: setupErr, userId });
+        });
       } catch (provisionErr) {
         logger.error("Corsair provisioning failed", { error: provisionErr, userId });
         // non-fatal — core auth succeeded; user can retry later
