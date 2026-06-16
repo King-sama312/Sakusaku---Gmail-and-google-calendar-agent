@@ -1,6 +1,7 @@
 import type GmailService from "../gmail";
 import type CalendarService from "../calendar";
 import type { ToolDefinition, ToolResult } from "./model";
+import { formatToolResult } from "./formatters";
 
 export type ToolExecutorContext = {
   userId: string;
@@ -35,7 +36,7 @@ function success(toolCallId: string, toolName: string, data: unknown): ToolResul
   return {
     toolCallId,
     toolName,
-    content: typeof data === "string" ? data : JSON.stringify(data),
+    content: formatToolResult(toolName, data),
     error: false,
   };
 }

@@ -13,7 +13,7 @@ export default function DashboardPage() {
       {user && <p className="mt-2 text-muted-foreground">Welcome back, {user.fullName}</p>}
       <div className="mt-6 flex gap-3">
         <Link href="/chat">
-          <Button>Chat with Sakusaku</Button>
+          <Button>Chat with Sakuchan</Button>
         </Link>
         <Link href="/mail">
           <Button variant="outline">Mail</Button>

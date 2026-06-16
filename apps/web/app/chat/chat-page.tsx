@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const justSentRef = useRef(false);
 
   const { data: conversations, isLoading: isConversationsLoading } = useConversations();
   const { data: conversationData, isLoading: isConversationLoading } =
@@ -64,8 +65,9 @@ export default function ChatPage() {
     const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
     const isNearBottom = distanceFromBottom < 100;
 
-    if (isNearBottom) {
+    if (isNearBottom || justSentRef.current) {
       viewport.scrollTop = viewport.scrollHeight;
+      justSentRef.current = false;
     }
   }, [messages, isThinking]);
 
@@ -78,6 +80,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsThinking(true);
+    justSentRef.current = true;
 
     try {
       const response = await sendMessage.mutateAsync({
@@ -240,7 +243,7 @@ export default function ChatPage() {
           <div className="ml-10 md:ml-0">
             <h1 className="font-semibold">AI Assistant</h1>
             <p className="text-xs text-muted-foreground">
-              Ask about your inbox, schedule, or let Sakusaku act on your behalf.
+              Ask about your inbox, schedule, or let Sakuchan act on your behalf.
             </p>
           </div>
           <Link href="/dashboard">
@@ -260,7 +263,7 @@ export default function ChatPage() {
           ) : messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
               <Bot className="mb-3 h-10 w-10" />
-              <p className="text-sm">Start a conversation with Sakusaku</p>
+              <p className="text-sm">Start a conversation with Sakuchan</p>
               <p className="text-xs">Try: “What does my inbox look like today?”</p>
             </div>
           ) : (
@@ -321,7 +324,7 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Sakusaku anything…"
+            placeholder="Ask Sakuchan anything…"
             className="min-h-[44px] resize-none"
             rows={1}
           />

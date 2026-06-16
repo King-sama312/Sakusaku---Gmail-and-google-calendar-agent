@@ -25,6 +25,7 @@ import {
 import { tools, toolExecutorMap } from "./tools";
 import { buildSystemPrompt } from "./prompt";
 import { redactSecrets, sanitizeForLogging, truncateToolResult } from "./sanitize";
+import { hasXMLToolCalls, parseXMLToolCalls } from "./xml-tools";
 
 const ASSISTANT_ROLE = "assistant" as const;
 const TOOL_ROLE = "tool" as const;
@@ -102,40 +103,54 @@ class ChatService {
       messageCount: messages.length,
     });
 
-    let assistantContent: string;
-    let assistantToolCalls: ChatMessage["toolCalls"] | undefined;
+    let currentMessages = messages;
 
     try {
-      const firstResponse = await this.openai.chat.completions.create({
-        model: env.GLM_MODEL,
-        messages,
-        tools,
-        tool_choice: "auto",
-        temperature: 0.3,
-      });
+      const MAX_TOOL_ROUNDS = 5;
+      let finalContent = "";
+      let finalToolCalls: ChatMessage["toolCalls"] | undefined;
 
-      const choice = firstResponse.choices[0];
-      if (!choice) throw new Error("LLM returned no choices");
-
-      const assistantMessage = choice.message;
-      assistantContent = assistantMessage.content ?? "";
-      assistantToolCalls = assistantMessage.tool_calls
-        ?.filter((tc): tc is OpenAI.Chat.ChatCompletionMessageToolCall => tc.type === "function")
-        .map((tc) => {
-          const toolCall = tc as OpenAI.Chat.ChatCompletionMessageToolCall & {
-            function: { name: string; arguments: string };
-          };
-          return {
-            id: toolCall.id,
-            type: "function" as const,
-            function: {
-              name: toolCall.function.name,
-              arguments: toolCall.function.arguments,
-            },
-          };
+      for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+        const response = await this.openai.chat.completions.create({
+          model: env.GLM_MODEL,
+          messages: currentMessages,
+          tools,
+          tool_choice: "auto",
+          temperature: 0.3,
         });
 
-      if (assistantToolCalls && assistantToolCalls.length > 0) {
+        const choice = response.choices[0];
+        if (!choice) throw new Error("LLM returned no choices");
+
+        const assistantMessage = choice.message;
+        let assistantContent = assistantMessage.content ?? "";
+        let assistantToolCalls: ChatMessage["toolCalls"] | undefined;
+
+        // Some OpenAI-compatible providers emit tool calls as XML inside content.
+        if (!assistantMessage.tool_calls?.length && hasXMLToolCalls(assistantContent)) {
+          const parsed = parseXMLToolCalls(assistantContent);
+          assistantContent = parsed.cleanedContent;
+          assistantToolCalls = parsed.toolCalls;
+        } else {
+          assistantToolCalls = assistantMessage.tool_calls
+            ?.filter(
+              (tc): tc is OpenAI.Chat.ChatCompletionMessageToolCall => tc.type === "function",
+            )
+            .map((tc) => {
+              const toolCall = tc as OpenAI.Chat.ChatCompletionMessageToolCall & {
+                function: { name: string; arguments: string };
+              };
+              return {
+                id: toolCall.id,
+                type: "function" as const,
+                function: {
+                  name: toolCall.function.name,
+                  arguments: toolCall.function.arguments,
+                },
+              };
+            });
+        }
+
         await this.persistMessages(conversationId, [
           {
             role: ASSISTANT_ROLE,
@@ -144,39 +159,30 @@ class ChatService {
           },
         ]);
 
+        if (!assistantToolCalls || assistantToolCalls.length === 0) {
+          finalContent = assistantContent;
+          finalToolCalls = undefined;
+          break;
+        }
+
+        finalToolCalls = assistantToolCalls;
         const toolResults = await this.executeToolCalls(assistantToolCalls, userId);
         await this.persistToolResults(conversationId, toolResults);
 
-        const finalMessages = await this.buildLLMMessages(userId, conversationId, userEmail);
-
-        const finalResponse = await this.openai.chat.completions.create({
-          model: env.GLM_MODEL,
-          messages: finalMessages,
-          temperature: 0.3,
-        });
-
-        const finalChoice = finalResponse.choices[0];
-        if (!finalChoice) throw new Error("LLM returned no choices in final response");
-
-        assistantContent = finalChoice.message.content ?? "";
-        assistantToolCalls = undefined;
+        currentMessages = await this.buildLLMMessages(userId, conversationId, userEmail);
       }
-
-      await this.persistMessages(conversationId, [
-        { role: ASSISTANT_ROLE, content: assistantContent },
-      ]);
 
       logger.info("Chat assistant response generated", {
         userId,
         conversationId,
-        responseLength: assistantContent.length,
+        responseLength: finalContent.length,
       });
 
       return {
         conversationId,
         role: ASSISTANT_ROLE,
-        content: assistantContent,
-        toolCalls: assistantToolCalls,
+        content: finalContent,
+        toolCalls: finalToolCalls,
       };
     } catch (err) {
       const safeError = redactSecrets(err instanceof Error ? err.message : String(err));
