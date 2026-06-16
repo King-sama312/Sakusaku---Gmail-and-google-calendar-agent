@@ -127,11 +127,7 @@ export function ComposeEmail({
             <FormItem>
               <FormLabel>Body</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Write your message..."
-                  className="min-h-32"
-                  {...field}
-                />
+                <Textarea placeholder="Write your message..." className="min-h-32" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

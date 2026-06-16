@@ -69,7 +69,11 @@ export function EventForm({ event, onSuccess, onCancel }: EventFormProps) {
       startTime: defaultStart.length > 10 ? defaultStart.slice(11, 16) : "",
       endDate: defaultEnd.slice(0, 10),
       endTime: defaultEnd.length > 10 ? defaultEnd.slice(11, 16) : "",
-      attendees: event?.attendees?.map((a) => a.email).filter(Boolean).join(", ") ?? "",
+      attendees:
+        event?.attendees
+          ?.map((a) => a.email)
+          .filter(Boolean)
+          .join(", ") ?? "",
       colorId: "",
     },
   });
@@ -78,12 +82,13 @@ export function EventForm({ event, onSuccess, onCancel }: EventFormProps) {
     const start = values.startTime
       ? `${values.startDate}T${values.startTime}:00`
       : values.startDate;
-    const end = values.endTime
-      ? `${values.endDate}T${values.endTime}:00`
-      : values.endDate;
+    const end = values.endTime ? `${values.endDate}T${values.endTime}:00` : values.endDate;
 
     const attendees = values.attendees
-      ? values.attendees.split(",").map((e) => ({ email: e.trim() })).filter((a) => a.email)
+      ? values.attendees
+          .split(",")
+          .map((e) => ({ email: e.trim() }))
+          .filter((a) => a.email)
       : undefined;
 
     if (event?.id) {

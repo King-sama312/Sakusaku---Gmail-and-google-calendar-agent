@@ -5,12 +5,7 @@ import { useGmailDrafts, useDeleteDraft } from "~/hooks/api/gmail";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { ComposeEmail } from "~/components/compose-email";
 
 export default function DraftsPage() {
@@ -60,9 +55,7 @@ export default function DraftsPage() {
                       ? `Draft #${draft.message.threadId?.slice(0, 8) ?? ""}`
                       : "New draft"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {draft.id}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{draft.id}</p>
                 </button>
                 <Button
                   variant="ghost"

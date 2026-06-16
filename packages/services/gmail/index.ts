@@ -83,15 +83,13 @@ class GmailService {
   }
 
   async sendMessage(userId: string, params: SendMessageInputType) {
-    const { to, subject, body, cc, threadId } =
-      await sendMessageInput.parseAsync(params);
+    const { to, subject, body, cc, threadId } = await sendMessageInput.parseAsync(params);
     const raw = buildMimeMessage({ to, subject, body, cc });
     return this.tenant(userId).gmail.api.messages.send({ raw, threadId });
   }
 
   async listDrafts(userId: string, params: ListDraftsInputType) {
-    const { maxResults, pageToken, q } =
-      await listDraftsInput.parseAsync(params);
+    const { maxResults, pageToken, q } = await listDraftsInput.parseAsync(params);
     return this.tenant(userId).gmail.api.drafts.list({
       maxResults,
       pageToken,
@@ -100,8 +98,7 @@ class GmailService {
   }
 
   async createDraft(userId: string, params: CreateDraftInputType) {
-    const { to, subject, body, cc, threadId } =
-      await createDraftInput.parseAsync(params);
+    const { to, subject, body, cc, threadId } = await createDraftInput.parseAsync(params);
     const raw = buildMimeMessage({ to, subject, body, cc });
     return this.tenant(userId).gmail.api.drafts.create({
       draft: { message: { raw, threadId } },
@@ -109,8 +106,7 @@ class GmailService {
   }
 
   async updateDraft(userId: string, params: UpdateDraftInputType) {
-    const { id, to, subject, body, cc } =
-      await updateDraftInput.parseAsync(params);
+    const { id, to, subject, body, cc } = await updateDraftInput.parseAsync(params);
     const raw = to && subject && body ? buildMimeMessage({ to, subject, body, cc }) : undefined;
     return this.tenant(userId).gmail.api.drafts.update({
       id,

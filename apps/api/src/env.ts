@@ -7,6 +7,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   APP_NAME: z.string().default("Sakusaku"),
+  WEBHOOK_BASE_URL: z
+    .string()
+    .optional()
+    .describe("Public URL for webhook endpoint (e.g. ngrok URL). Falls back to BASE_URL."),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {

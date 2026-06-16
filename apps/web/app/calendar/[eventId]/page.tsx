@@ -7,12 +7,7 @@ import { useCalendarEvent, useDeleteEvent } from "~/hooks/api/calendar";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Badge } from "~/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { EventForm } from "~/components/event-form";
 import { ChevronLeftIcon } from "lucide-react";
 
@@ -21,7 +16,12 @@ export default function EventDetailPage() {
   const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const { data: event, isLoading, isError, error } = useCalendarEvent({
+  const {
+    data: event,
+    isLoading,
+    isError,
+    error,
+  } = useCalendarEvent({
     eventId: params.eventId,
   });
 
@@ -80,18 +80,14 @@ export default function EventDetailPage() {
             <ChevronLeftIcon className="size-4" />
           </Button>
         </Link>
-        <h1 className="text-xl font-semibold truncate">
-          {event.summary ?? "(untitled)"}
-        </h1>
+        <h1 className="text-xl font-semibold truncate">{event.summary ?? "(untitled)"}</h1>
       </div>
 
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           {event.eventType && <Badge variant="secondary">{event.eventType}</Badge>}
           {event.status && (
-            <Badge
-              variant={event.status === "cancelled" ? "destructive" : "outline"}
-            >
+            <Badge variant={event.status === "cancelled" ? "destructive" : "outline"}>
               {event.status}
             </Badge>
           )}
@@ -109,12 +105,15 @@ export default function EventDetailPage() {
                   year: "numeric",
                 })}
                 {endDate && endDate !== startDate && (
-                  <> — {new Date(endDate).toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  <>
+                    {" "}
+                    —{" "}
+                    {new Date(endDate).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </>
                 )}
                 <span className="text-muted-foreground ml-1">(All day)</span>
@@ -157,9 +156,7 @@ export default function EventDetailPage() {
 
         {event.attendees && event.attendees.length > 0 && (
           <div className="grid gap-1 text-sm">
-            <p className="text-muted-foreground">
-              Attendees ({event.attendees.length})
-            </p>
+            <p className="text-muted-foreground">Attendees ({event.attendees.length})</p>
             <div className="space-y-1">
               {event.attendees.map((attendee, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
@@ -193,12 +190,7 @@ export default function EventDetailPage() {
           <Button variant="default" size="sm" onClick={() => setShowEditDialog(true)}>
             Edit
           </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            disabled={isDeleting}
-          >
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </div>

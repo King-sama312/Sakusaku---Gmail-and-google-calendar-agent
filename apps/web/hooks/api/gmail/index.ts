@@ -42,11 +42,7 @@ export const useSendEmail = () => {
   });
 };
 
-export const useGmailDrafts = (input: {
-  maxResults?: number;
-  pageToken?: string;
-  q?: string;
-}) => {
+export const useGmailDrafts = (input: { maxResults?: number; pageToken?: string; q?: string }) => {
   return trpc.gmail.listDrafts.useQuery(input, {
     enabled: true,
   });

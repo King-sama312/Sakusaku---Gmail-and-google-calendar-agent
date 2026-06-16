@@ -28,12 +28,8 @@ export function Availability({
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
-  const [timeMin, setTimeMin] = useState(
-    defaultTimeMin ?? weekStart.toISOString().slice(0, 16)
-  );
-  const [timeMax, setTimeMax] = useState(
-    defaultTimeMax ?? weekEnd.toISOString().slice(0, 16)
-  );
+  const [timeMin, setTimeMin] = useState(defaultTimeMin ?? weekStart.toISOString().slice(0, 16));
+  const [timeMax, setTimeMax] = useState(defaultTimeMax ?? weekEnd.toISOString().slice(0, 16));
   const [timeZone, setTimeZone] = useState(defaultTimeZone ?? "");
   const [result, setResult] = useState<Record<string, { busy?: CalendarBusy }> | null>(null);
 
@@ -73,11 +69,7 @@ export function Availability({
         </div>
         <div className="w-32">
           <label className="text-xs text-muted-foreground mb-1 block">Time Zone</label>
-          <Input
-            placeholder="UTC"
-            value={timeZone}
-            onChange={(e) => setTimeZone(e.target.value)}
-          />
+          <Input placeholder="UTC" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} />
         </div>
         <Button onClick={handleCheck} disabled={isPending} className="shrink-0">
           {isPending ? "Checking..." : "Check"}
@@ -119,7 +111,9 @@ export function Availability({
             </div>
           ))}
           {!hasBusySlots && (
-            <p className="text-xs text-green-600 font-medium">All calendars are free in this range</p>
+            <p className="text-xs text-green-600 font-medium">
+              All calendars are free in this range
+            </p>
           )}
         </div>
       )}

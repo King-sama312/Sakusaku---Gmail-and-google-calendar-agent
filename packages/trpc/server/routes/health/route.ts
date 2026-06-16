@@ -18,9 +18,12 @@ export const healthRouter = router({
 });
 
 export const chaiRouter = router({
-  chaiFunc: publicProcedure.input(z.object({email: z.email()})).output(z.object({message: z.string()})).query(async({input})=>{
-    return{
-     message: `Hello ${input.email}` 
-    }
-  })
-})
+  chaiFunc: publicProcedure
+    .input(z.object({ email: z.email() }))
+    .output(z.object({ message: z.string() }))
+    .query(async ({ input }) => {
+      return {
+        message: `Hello ${input.email}`,
+      };
+    }),
+});

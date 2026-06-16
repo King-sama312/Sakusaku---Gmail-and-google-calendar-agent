@@ -16,7 +16,12 @@ export default function MailInboxPage() {
   const [pageToken, setPageToken] = useState<string | undefined>(undefined);
   const [selectedLabelId, setSelectedLabelId] = useState<string | undefined>(undefined);
 
-  const { data: threadsData, isLoading, isError, error } = useGmailThreads({
+  const {
+    data: threadsData,
+    isLoading,
+    isError,
+    error,
+  } = useGmailThreads({
     q: debouncedQuery || undefined,
     labelIds: selectedLabelId ? [selectedLabelId] : undefined,
     pageToken,
@@ -34,10 +39,7 @@ export default function MailInboxPage() {
   return (
     <div className="flex h-full">
       <aside className="w-56 shrink-0 border-r p-3 hidden lg:block">
-        <MailLabels
-          selectedLabelId={selectedLabelId}
-          onSelectLabel={setSelectedLabelId}
-        />
+        <MailLabels selectedLabelId={selectedLabelId} onSelectLabel={setSelectedLabelId} />
       </aside>
       <div className="flex flex-1 flex-col">
         <div className="flex items-center gap-2 border-b p-3">
@@ -72,8 +74,12 @@ export default function MailInboxPage() {
                 {error?.message ?? "An unknown error occurred"}
               </p>
               {error?.message?.toLowerCase().includes("account not found") && (
-                <a href={`${new URL(env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").origin}/auth/gmail`}>
-                  <Button variant="default" size="sm">Connect Gmail</Button>
+                <a
+                  href={`${new URL(env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/trpc").origin}/auth/gmail`}
+                >
+                  <Button variant="default" size="sm">
+                    Connect Gmail
+                  </Button>
                 </a>
               )}
             </div>

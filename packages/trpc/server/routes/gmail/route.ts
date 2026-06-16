@@ -48,7 +48,9 @@ export const gmailRouter = router({
     }),
 
   searchMessages: authenticatedProcedure
-    .meta({ openapi: { method: "GET", path: getPath("/messages/search"), tags: TAGS, protect: true } })
+    .meta({
+      openapi: { method: "GET", path: getPath("/messages/search"), tags: TAGS, protect: true },
+    })
     .input(searchMessagesInputModel)
     .output(searchMessagesOutputModel)
     .query(async ({ input, ctx }) => {
@@ -56,7 +58,9 @@ export const gmailRouter = router({
     }),
 
   sendMessage: authenticatedProcedure
-    .meta({ openapi: { method: "POST", path: getPath("/messages/send"), tags: TAGS, protect: true } })
+    .meta({
+      openapi: { method: "POST", path: getPath("/messages/send"), tags: TAGS, protect: true },
+    })
     .input(sendMessageInputModel)
     .output(sendMessageOutputModel)
     .mutation(async ({ input, ctx }) => {
@@ -88,7 +92,9 @@ export const gmailRouter = router({
     }),
 
   deleteDraft: authenticatedProcedure
-    .meta({ openapi: { method: "DELETE", path: getPath("/drafts/{id}"), tags: TAGS, protect: true } })
+    .meta({
+      openapi: { method: "DELETE", path: getPath("/drafts/{id}"), tags: TAGS, protect: true },
+    })
     .input(deleteDraftInputModel)
     .output(deleteDraftOutputModel)
     .mutation(async ({ input, ctx }) => {
@@ -113,7 +119,9 @@ export const gmailRouter = router({
     }),
 
   deleteLabel: authenticatedProcedure
-    .meta({ openapi: { method: "DELETE", path: getPath("/labels/{id}"), tags: TAGS, protect: true } })
+    .meta({
+      openapi: { method: "DELETE", path: getPath("/labels/{id}"), tags: TAGS, protect: true },
+    })
     .input(deleteLabelInputModel)
     .output(deleteLabelOutputModel)
     .mutation(async ({ input, ctx }) => {

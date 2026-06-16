@@ -30,7 +30,10 @@ export const createEventInput = z.object({
   start: eventDateTime.describe("Start time of the event"),
   end: eventDateTime.describe("End time of the event"),
   attendees: z.array(eventAttendee).optional().describe("List of attendees"),
-  recurrence: z.array(z.string()).optional().describe('RRULE lines, e.g. ["RRULE:FREQ=WEEKLY;COUNT=5"]'),
+  recurrence: z
+    .array(z.string())
+    .optional()
+    .describe('RRULE lines, e.g. ["RRULE:FREQ=WEEKLY;COUNT=5"]'),
   colorId: z.string().optional().describe("Color ID (1-11)"),
   transparency: z.enum(["opaque", "transparent"]).optional(),
   visibility: z.enum(["default", "public", "private", "confidential"]).optional(),

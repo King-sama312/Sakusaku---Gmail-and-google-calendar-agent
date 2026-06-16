@@ -13,8 +13,7 @@ const envSchema = z.object({
     .default(31536000000)
     .describe("session duration in ms"),
   NODE_ENV: z.enum(["development", "prod", "production"]).default("development"),
-  RESEND_API_KEY: z.string().describe("Resend API key for sending emails"),
-  FRONTEND_URL: z.string().default("http://localhost:3000").describe("Frontend URL for email links"),
+  FRONTEND_URL: z.string().default("http://localhost:3000").describe("Frontend URL for redirects"),
   DATABASE_URL: z.string().describe("Database URL for postgres connection"),
   CORSAIR_KEK: z.string().describe("Key Encryption Key for Corsair credential encryption"),
 });

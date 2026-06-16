@@ -156,9 +156,7 @@ export const listLabelsOutputModel = z.object({
 
 export const createLabelInputModel = z.object({
   name: z.string().min(1).describe("Label name"),
-  labelListVisibility: z
-    .enum(["labelShow", "labelShowIfUnread", "labelHide"])
-    .optional(),
+  labelListVisibility: z.enum(["labelShow", "labelShowIfUnread", "labelHide"]).optional(),
   messageListVisibility: z.enum(["show", "hide"]).optional(),
 });
 

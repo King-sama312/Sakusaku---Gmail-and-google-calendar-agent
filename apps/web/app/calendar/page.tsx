@@ -7,12 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Badge } from "~/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -27,8 +22,18 @@ import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 type ViewMode = "month" | "week" | "day";
@@ -53,7 +58,12 @@ export default function CalendarPage() {
     return d.toISOString();
   }, [year, month]);
 
-  const { data: eventsData, isLoading, isError, error } = useCalendarEvents({
+  const {
+    data: eventsData,
+    isLoading,
+    isError,
+    error,
+  } = useCalendarEvents({
     timeMin,
     timeMax,
     singleEvents: true,
@@ -123,7 +133,7 @@ export default function CalendarPage() {
       const d = new Date();
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
     },
-    [year, month]
+    [year, month],
   );
 
   return (
@@ -146,10 +156,7 @@ export default function CalendarPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={viewMode}
-            onValueChange={(v: ViewMode) => setViewMode(v)}
-          >
+          <Select value={viewMode} onValueChange={(v: ViewMode) => setViewMode(v)}>
             <SelectTrigger className="w-24 h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -209,7 +216,7 @@ export default function CalendarPage() {
                   key={i}
                   className={cn(
                     "bg-background min-h-[80px] p-1 text-sm transition-colors",
-                    day ? "hover:bg-muted/50 cursor-pointer" : ""
+                    day ? "hover:bg-muted/50 cursor-pointer" : "",
                   )}
                   onClick={() => {
                     if (day) {
@@ -223,7 +230,7 @@ export default function CalendarPage() {
                       <span
                         className={cn(
                           "inline-flex items-center justify-center size-6 text-xs rounded-full",
-                          isToday(day) && "bg-primary text-primary-foreground font-medium"
+                          isToday(day) && "bg-primary text-primary-foreground font-medium",
                         )}
                       >
                         {day}
@@ -267,23 +274,24 @@ export default function CalendarPage() {
                   <div className="flex flex-col items-center min-w-12">
                     <span className="text-xs text-muted-foreground">
                       {event.start?.dateTime
-                        ? new Date(event.start.dateTime).toLocaleDateString(undefined, { weekday: "short" })
+                        ? new Date(event.start.dateTime).toLocaleDateString(undefined, {
+                            weekday: "short",
+                          })
                         : ""}
                     </span>
                     <span className="text-sm font-semibold">
                       {event.start?.dateTime
-                        ? new Date(event.start.dateTime).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                        ? new Date(event.start.dateTime).toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                         : "All day"}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {event.summary ?? "(untitled)"}
-                    </p>
+                    <p className="text-sm font-medium truncate">{event.summary ?? "(untitled)"}</p>
                     {event.description && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {event.description}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{event.description}</p>
                     )}
                   </div>
                   {event.eventType && (
@@ -318,18 +326,17 @@ export default function CalendarPage() {
                   <div className="flex flex-col items-center min-w-12">
                     <span className="text-sm font-semibold">
                       {event.start?.dateTime
-                        ? new Date(event.start.dateTime).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                        ? new Date(event.start.dateTime).toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                         : "All day"}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {event.summary ?? "(untitled)"}
-                    </p>
+                    <p className="text-sm font-medium truncate">{event.summary ?? "(untitled)"}</p>
                     {event.location && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {event.location}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{event.location}</p>
                     )}
                   </div>
                   {event.eventType && (

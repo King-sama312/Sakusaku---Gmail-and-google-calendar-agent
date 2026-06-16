@@ -20,8 +20,26 @@ class CalendarService {
   }
 
   async createEvent(userId: string, params: CreateEventInputType) {
-    const { summary, description, location, start, end, attendees, recurrence, colorId, transparency, visibility, eventType, status, reminders, guestsCanModify, guestsCanInviteOthers, guestsCanSeeOtherGuests, anyoneCanAddSelf, sendUpdates } =
-      await createEventInput.parseAsync(params);
+    const {
+      summary,
+      description,
+      location,
+      start,
+      end,
+      attendees,
+      recurrence,
+      colorId,
+      transparency,
+      visibility,
+      eventType,
+      status,
+      reminders,
+      guestsCanModify,
+      guestsCanInviteOthers,
+      guestsCanSeeOtherGuests,
+      anyoneCanAddSelf,
+      sendUpdates,
+    } = await createEventInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.events.create({
       event: {
         summary,
@@ -47,8 +65,27 @@ class CalendarService {
   }
 
   async updateEvent(userId: string, params: UpdateEventInputType) {
-    const { eventId, summary, description, location, start, end, attendees, recurrence, colorId, transparency, visibility, eventType, status, reminders, guestsCanModify, guestsCanInviteOthers, guestsCanSeeOtherGuests, anyoneCanAddSelf, sendUpdates } =
-      await updateEventInput.parseAsync(params);
+    const {
+      eventId,
+      summary,
+      description,
+      location,
+      start,
+      end,
+      attendees,
+      recurrence,
+      colorId,
+      transparency,
+      visibility,
+      eventType,
+      status,
+      reminders,
+      guestsCanModify,
+      guestsCanInviteOthers,
+      guestsCanSeeOtherGuests,
+      anyoneCanAddSelf,
+      sendUpdates,
+    } = await updateEventInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.events.update({
       id: eventId,
       event: {
@@ -75,8 +112,18 @@ class CalendarService {
   }
 
   async listEvents(userId: string, params: ListEventsInputType) {
-    const { calendarId, timeMin, timeMax, timeZone, singleEvents, maxResults, pageToken, q, orderBy, showDeleted } =
-      await listEventsInput.parseAsync(params);
+    const {
+      calendarId,
+      timeMin,
+      timeMax,
+      timeZone,
+      singleEvents,
+      maxResults,
+      pageToken,
+      q,
+      orderBy,
+      showDeleted,
+    } = await listEventsInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.events.getMany({
       calendarId,
       timeMin,
@@ -92,8 +139,7 @@ class CalendarService {
   }
 
   async getEvent(userId: string, params: GetEventInputType) {
-    const { calendarId, eventId, timeZone } =
-      await getEventInput.parseAsync(params);
+    const { calendarId, eventId, timeZone } = await getEventInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.events.get({
       calendarId,
       id: eventId,
@@ -102,8 +148,7 @@ class CalendarService {
   }
 
   async deleteEvent(userId: string, params: DeleteEventInputType) {
-    const { calendarId, eventId, sendUpdates } =
-      await deleteEventInput.parseAsync(params);
+    const { calendarId, eventId, sendUpdates } = await deleteEventInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.events.delete({
       calendarId,
       id: eventId,
@@ -112,8 +157,7 @@ class CalendarService {
   }
 
   async getAvailability(userId: string, params: GetAvailabilityInputType) {
-    const { timeMin, timeMax, timeZone, items } =
-      await getAvailabilityInput.parseAsync(params);
+    const { timeMin, timeMax, timeZone, items } = await getAvailabilityInput.parseAsync(params);
     return this.tenant(userId).googlecalendar.api.calendar.getAvailability({
       timeMin,
       timeMax,

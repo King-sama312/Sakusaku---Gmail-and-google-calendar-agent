@@ -44,8 +44,22 @@ export const eventOutputModel = z.object({
   summary: z.string().optional(),
   description: z.string().optional(),
   location: z.string().optional(),
-  creator: z.object({ id: z.string().optional(), email: z.string().optional(), displayName: z.string().optional(), self: z.boolean().optional() }).optional(),
-  organizer: z.object({ id: z.string().optional(), email: z.string().optional(), displayName: z.string().optional(), self: z.boolean().optional() }).optional(),
+  creator: z
+    .object({
+      id: z.string().optional(),
+      email: z.string().optional(),
+      displayName: z.string().optional(),
+      self: z.boolean().optional(),
+    })
+    .optional(),
+  organizer: z
+    .object({
+      id: z.string().optional(),
+      email: z.string().optional(),
+      displayName: z.string().optional(),
+      self: z.boolean().optional(),
+    })
+    .optional(),
   start: eventDateTimeModel.optional(),
   end: eventDateTimeModel.optional(),
   recurrence: z.array(z.string()).optional(),
@@ -124,7 +138,14 @@ export const getAvailabilityOutputModel = z.object({
   kind: z.string().optional(),
   timeMin: z.string().optional(),
   timeMax: z.string().optional(),
-  calendars: z.record(z.string(), z.object({
-    busy: z.array(z.object({ start: z.string().optional(), end: z.string().optional() })).optional(),
-  })).optional(),
+  calendars: z
+    .record(
+      z.string(),
+      z.object({
+        busy: z
+          .array(z.object({ start: z.string().optional(), end: z.string().optional() }))
+          .optional(),
+      }),
+    )
+    .optional(),
 });

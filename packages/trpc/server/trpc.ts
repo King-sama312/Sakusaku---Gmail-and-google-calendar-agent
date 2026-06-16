@@ -5,10 +5,7 @@ import { createContext } from "./context";
 import { userService } from "./services";
 import { getAuthenticationCookie } from "./utils/cookie";
 
-export const tRPCContext = initTRPC
-  .meta<OpenApiMeta>()
-  .context<typeof createContext>()
-  .create({});
+export const tRPCContext = initTRPC.meta<OpenApiMeta>().context<typeof createContext>().create({});
 
 export const router = tRPCContext.router;
 

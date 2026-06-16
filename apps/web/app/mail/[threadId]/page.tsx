@@ -14,8 +14,13 @@ export default function ThreadPage() {
   const router = useRouter();
   const [showReply, setShowReply] = useState(false);
 
-  const { data: thread, isLoading, isError, error } = useGmailThread({
-    id: threadId,
+  const {
+    data: thread,
+    isLoading,
+    isError,
+    error,
+  } = useGmailThread({
+    id: params.threadId,
   });
 
   if (isLoading) {
