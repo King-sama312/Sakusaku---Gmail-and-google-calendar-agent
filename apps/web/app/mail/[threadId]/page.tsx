@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useGmailThread } from "~/hooks/api/gmail";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Separator } from "~/components/ui/separator";
-import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { ComposeEmail } from "~/components/compose-email";
+import { EmailViewer } from "~/components/email-viewer";
+import { parseMessage } from "~/lib/email";
 
 export default function ThreadPage() {
   const params = useParams<{ threadId: string }>();
@@ -55,6 +55,12 @@ export default function ThreadPage() {
 
   const messages = thread.messages ?? [];
 
+  // Get the subject from the first message's headers for reply
+  const firstMessage = messages[0];
+  const firstParsed = firstMessage ? parseMessage(firstMessage as Record<string, unknown>) : null;
+  const threadSubject = firstParsed?.headers.subject || thread.snippet?.slice(0, 60) || "";
+  const replyTo = firstParsed?.headers.from || "";
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 border-b p-3">
@@ -68,33 +74,15 @@ export default function ThreadPage() {
 
       <div className="flex-1 overflow-auto space-y-3 p-6">
         {messages.map((message, idx) => (
-          <Card key={message.id ?? idx}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {message.snippet?.slice(0, 80) || "Unknown"}
-                </span>
-                {message.internalDate && (
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(Number(message.internalDate)).toLocaleString()}
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {message.snippet || "(no content)"}
-              </p>
-            </CardContent>
-          </Card>
+          <EmailViewer key={message.id ?? idx} message={message as Record<string, unknown>} />
         ))}
       </div>
 
       {showReply && (
         <div className="border-t p-4">
           <ComposeEmail
-            initialTo=""
-            initialSubject={thread.snippet ? `Re: ${thread.snippet.slice(0, 60)}` : ""}
+            initialTo={replyTo}
+            initialSubject={threadSubject ? `Re: ${threadSubject}` : ""}
             threadId={params.threadId}
             onSuccess={() => setShowReply(false)}
             onCancel={() => setShowReply(false)}

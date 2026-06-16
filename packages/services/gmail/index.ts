@@ -61,6 +61,26 @@ class GmailService {
     });
   }
 
+  async listThreadsFromDb(
+    userId: string,
+    params: { limit?: number; offset?: number } = {},
+  ) {
+    const { limit = 20, offset = 0 } = params;
+    const threads = await this.tenant(userId).gmail.db.threads.list({
+      limit,
+      offset,
+    });
+
+    return {
+      threads: threads.map((t) => ({
+        id: t.data.id,
+        snippet: t.data.snippet,
+        historyId: t.data.historyId,
+      })),
+      resultSizeEstimate: threads.length,
+    };
+  }
+
   async getThread(userId: string, params: GetThreadInputType) {
     const { id, format } = await getThreadInput.parseAsync(params);
     return this.tenant(userId).gmail.api.threads.get({ id, format });

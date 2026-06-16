@@ -12,10 +12,22 @@ export const useGmailThreads = (input: {
   });
 };
 
-export const useGmailThread = (input: { id: string; format?: "minimal" | "full" | "metadata" }) => {
-  return trpc.gmail.getThread.useQuery(input, {
-    enabled: !!input.id,
+export const useGmailThreadsFromDb = (input: {
+  limit?: number;
+  offset?: number;
+}) => {
+  return trpc.gmail.listThreadsFromDb.useQuery(input, {
+    enabled: true,
   });
+};
+
+export const useGmailThread = (input: { id: string; format?: "minimal" | "full" | "metadata" }) => {
+  return trpc.gmail.getThread.useQuery(
+    { ...input, format: input.format ?? "full" },
+    {
+      enabled: !!input.id,
+    },
+  );
 };
 
 export const useSearchMessages = (input: {

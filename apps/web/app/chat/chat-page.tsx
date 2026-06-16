@@ -325,7 +325,7 @@ export default function ChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask Sakuchan anything…"
-            className="min-h-[44px] resize-none"
+            className="min-h-11 resize-none"
             rows={1}
           />
           <Button type="submit" size="icon" disabled={!input.trim() || isThinking}>

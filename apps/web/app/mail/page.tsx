@@ -2,25 +2,30 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useGmailThreads, useGmailLabels } from "~/hooks/api/gmail";
+import { useGmailThreads, useGmailThreadsFromDb } from "~/hooks/api/gmail";
 import { env } from "~/env.js";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { MailLabels } from "~/components/mail-labels";
+import { CategoryTabs } from "~/components/category-tabs";
 
 export default function MailInboxPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [pageToken, setPageToken] = useState<string | undefined>(undefined);
   const [selectedLabelId, setSelectedLabelId] = useState<string | undefined>(undefined);
+  const [dbOffset, setDbOffset] = useState(0);
+  const [useApi, setUseApi] = useState(false);
 
+  // Fetch from API (for search, category filter, or manual refresh)
   const {
-    data: threadsData,
-    isLoading,
-    isError,
-    error,
+    data: apiData,
+    isLoading: isApiLoading,
+    isError: isApiError,
+    error: apiError,
+    refetch: refetchApi,
   } = useGmailThreads({
     q: debouncedQuery || undefined,
     labelIds: selectedLabelId ? [selectedLabelId] : undefined,
@@ -28,12 +33,58 @@ export default function MailInboxPage() {
     maxResults: 20,
   });
 
+  // Fetch from DB (default, fast)
+  const {
+    data: dbData,
+    isLoading: isDbLoading,
+    isError: isDbError,
+    error: dbError,
+    refetch: refetchDb,
+  } = useGmailThreadsFromDb({
+    limit: 20,
+    offset: dbOffset,
+  });
+
+  // Determine which data source to use
+  const shouldUseApi = useApi || !!debouncedQuery || !!selectedLabelId;
+  const threadsData = shouldUseApi ? apiData : dbData;
+  const isLoading = shouldUseApi ? isApiLoading : isDbLoading;
+  const isError = shouldUseApi ? isApiError : isDbError;
+  const error = shouldUseApi ? apiError : dbError;
+
   const threads = threadsData?.threads ?? [];
-  const hasNextPage = !!threadsData?.nextPageToken;
+  const hasNextPage = shouldUseApi ? !!apiData?.nextPageToken : threads.length === 20;
 
   function handleSearch() {
     setDebouncedQuery(searchQuery);
     setPageToken(undefined);
+    setUseApi(true);
+  }
+
+  function handleRefresh() {
+    if (shouldUseApi) {
+      void refetchApi();
+    } else {
+      void refetchDb();
+    }
+  }
+
+  function handleNextPage() {
+    if (shouldUseApi) {
+      if (apiData?.nextPageToken) {
+        setPageToken(apiData.nextPageToken);
+      }
+    } else {
+      setDbOffset((prev) => prev + 20);
+    }
+  }
+
+  function handlePrevPage() {
+    if (shouldUseApi) {
+      setPageToken(undefined);
+    } else {
+      setDbOffset((prev) => Math.max(0, prev - 20));
+    }
   }
 
   return (
@@ -55,10 +106,18 @@ export default function MailInboxPage() {
           <Button variant="secondary" size="sm" onClick={handleSearch}>
             Search
           </Button>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            Refresh
+          </Button>
           <Link href="/mail?compose=true">
             <Button size="sm">Compose</Button>
           </Link>
         </div>
+
+        <CategoryTabs
+          selectedCategory={selectedLabelId}
+          onSelectCategory={setSelectedLabelId}
+        />
 
         <ScrollArea className="flex-1">
           {isLoading ? (
@@ -113,8 +172,8 @@ export default function MailInboxPage() {
           <Button
             variant="outline"
             size="sm"
-            disabled={!pageToken}
-            onClick={() => setPageToken(undefined)}
+            disabled={shouldUseApi ? !pageToken : dbOffset === 0}
+            onClick={handlePrevPage}
           >
             Previous
           </Button>
@@ -125,7 +184,7 @@ export default function MailInboxPage() {
             variant="outline"
             size="sm"
             disabled={!hasNextPage}
-            onClick={() => threadsData?.nextPageToken && setPageToken(threadsData.nextPageToken)}
+            onClick={handleNextPage}
           >
             Next
           </Button>

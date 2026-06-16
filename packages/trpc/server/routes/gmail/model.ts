@@ -39,9 +39,28 @@ export const getThreadOutputModel = z.object({
         labelIds: z.array(z.string()).optional(),
         snippet: z.string().optional(),
         internalDate: z.string().optional(),
+        payload: z.any().optional(),
       }),
     )
     .optional(),
+});
+
+export const listThreadsFromDbInputModel = z.object({
+  limit: z.number().int().positive().max(500).optional().describe("Max results"),
+  offset: z.number().int().min(0).optional().describe("Offset for pagination"),
+});
+
+export const listThreadsFromDbOutputModel = z.object({
+  threads: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        snippet: z.string().optional(),
+        historyId: z.string().optional(),
+      }),
+    )
+    .optional(),
+  resultSizeEstimate: z.number().optional(),
 });
 
 export const searchMessagesInputModel = z.object({

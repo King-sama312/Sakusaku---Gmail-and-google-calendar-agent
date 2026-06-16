@@ -5,6 +5,8 @@ import { generatePath } from "../../utils/path-generator";
 import {
   listThreadsInputModel,
   listThreadsOutputModel,
+  listThreadsFromDbInputModel,
+  listThreadsFromDbOutputModel,
   getThreadInputModel,
   getThreadOutputModel,
   searchMessagesInputModel,
@@ -37,6 +39,16 @@ export const gmailRouter = router({
     .output(listThreadsOutputModel)
     .query(async ({ input, ctx }) => {
       return await gmailService.listThreads(ctx.user.id, input);
+    }),
+
+  listThreadsFromDb: authenticatedProcedure
+    .meta({
+      openapi: { method: "GET", path: getPath("/threads/db"), tags: TAGS, protect: true },
+    })
+    .input(listThreadsFromDbInputModel)
+    .output(listThreadsFromDbOutputModel)
+    .query(async ({ input, ctx }) => {
+      return await gmailService.listThreadsFromDb(ctx.user.id, input);
     }),
 
   getThread: authenticatedProcedure
