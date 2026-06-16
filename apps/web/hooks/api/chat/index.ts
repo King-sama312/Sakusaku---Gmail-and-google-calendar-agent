@@ -12,9 +12,9 @@ export interface ChatMessage {
 export const useSendMessage = () => {
   const utils = trpc.useUtils();
   return trpc.chat.sendMessage.useMutation({
-    onSuccess: (data) => {
-      utils.chat.getConversation.invalidate({ id: data.conversationId });
-      utils.chat.listConversations.invalidate();
+    onSuccess: async (data) => {
+      await utils.chat.getConversation.invalidate({ id: data.conversationId });
+      await utils.chat.listConversations.refetch();
     },
   });
 };

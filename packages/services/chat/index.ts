@@ -72,19 +72,20 @@ class ChatService {
     const userEmail = userInfo.email;
 
     let conversationId = inputConversationId;
+    let isNewConversation = false;
     if (!conversationId) {
-      const title = await this.generateConversationTitle(message);
       const [conversation] = await db
         .insert(conversationsTable)
         .values({
           userId,
-          title,
+          title: "New chat",
           model: env.GLM_MODEL,
         })
         .returning({ id: conversationsTable.id });
       if (!conversation) throw new Error("Failed to create conversation");
       conversationId = conversation.id;
-      logger.info("Created new chat conversation", { userId, conversationId, title });
+      isNewConversation = true;
+      logger.info("Created new chat conversation", { userId, conversationId });
     } else {
       await this.verifyConversationOwnership(userId, conversationId);
     }
@@ -93,6 +94,12 @@ class ChatService {
     // compatibility with stateless clients, but the database is the source of
     // truth for persisted conversations.
     await this.persistMessages(conversationId, [{ role: "user", content: message }]);
+
+    // Generate a concise title for new conversations and update it in the
+    // background so the conversation list shows intent instead of the raw message.
+    const titleUpdatePromise = isNewConversation
+      ? this.generateAndUpdateTitle(conversationId, message)
+      : Promise.resolve();
 
     const messages = await this.buildLLMMessages(userId, conversationId, userEmail);
 
@@ -176,6 +183,15 @@ class ChatService {
         userId,
         conversationId,
         responseLength: finalContent.length,
+      });
+
+      // Wait for the title to be generated/updated before returning so the
+      // conversation list reflects the intent on the next fetch.
+      await titleUpdatePromise.catch((err) => {
+        logger.warn("Conversation title update failed", {
+          conversationId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
       return {
@@ -458,13 +474,76 @@ class ChatService {
   }
 
   /**
-   * Generate a short title for a new conversation based on the first user message.
+   * Generate a short, intent-based title for a new conversation based on the
+   * first user message. Falls back to "New chat" if generation fails.
    */
   private async generateConversationTitle(message: string): Promise<string> {
     const trimmed = message.trim();
     if (!trimmed) return "New chat";
-    const firstLine = trimmed.split("\n")[0] ?? "";
-    return firstLine.length > 80 ? `${firstLine.slice(0, 77)}…` : firstLine;
+
+    logger.info("Generating conversation title", { messagePreview: trimmed.slice(0, 100) });
+
+    try {
+      const response = await this.openai.chat.completions.create(
+        {
+          model: env.GLM_MODEL,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You generate concise conversation titles. Given a user's first message, output a 3-6 word title describing their intent. Do not explain, quote, or include markdown." +
+                "\nExample input: 'show my next meeting'\nExample output: View next meeting" +
+                "\nExample input: 'draft an email to john about the proposal'\nExample output: Draft proposal email" +
+                "\nOutput only the title.",
+            },
+            { role: "user", content: trimmed },
+          ],
+          temperature: 0.1,
+          max_tokens: 50,
+        },
+        { signal: AbortSignal.timeout(5000) },
+      );
+
+      const rawTitle = response.choices[0]?.message?.content?.trim();
+      logger.info("Received conversation title candidate", { rawTitle });
+
+      if (rawTitle) {
+        // Remove surrounding quotes, "Title:", and markdown; trim to DB column length
+        const cleaned = rawTitle
+          .replace(/^(title|"|')\s*:?\s*/i, "")
+          .replace(/["']$/g, "")
+          .replace(/^["']/, "")
+          .replace(/\*\*/g, "")
+          .trim()
+          .slice(0, 200);
+        if (cleaned) return cleaned;
+      }
+    } catch (err) {
+      logger.warn("Failed to generate conversation title", {
+        error: err instanceof Error ? redactSecrets(err.message) : String(err),
+      });
+    }
+
+    // Fallback: derive a readable title from the first user message
+    const fallback = trimmed
+      .split(/\s+/)
+      .slice(0, 6)
+      .join(" ")
+      .replace(/[\p{P}\p{S}]+$/u, "")
+      .slice(0, 200);
+    return fallback || "New chat";
+  }
+
+  /**
+   * Generate a title for a new conversation and update the row.
+   */
+  private async generateAndUpdateTitle(conversationId: string, message: string): Promise<void> {
+    const title = await this.generateConversationTitle(message);
+    await db
+      .update(conversationsTable)
+      .set({ title })
+      .where(eq(conversationsTable.id, conversationId));
+    logger.info("Updated conversation title", { conversationId, title });
   }
 }
 

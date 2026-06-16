@@ -182,6 +182,53 @@ const inMemoryDb = vi.hoisted(() => {
     };
   }
 
+  function createUpdateChain(table: unknown) {
+    return {
+      set: (values: Record<string, unknown>) => ({
+        where: (predicate: unknown) => {
+          const pred = predicate as Record<string, unknown>;
+
+          async function executeUpdate(): Promise<Record<string, unknown>[]> {
+            const updated: Record<string, unknown>[] = [];
+            if (table === conversationsTableMarker) {
+              for (const row of conversations) {
+                if (matchesPredicate(row, pred)) {
+                  Object.assign(row, values);
+                  updated.push({ ...row });
+                }
+              }
+            } else if (table === messagesTableMarker) {
+              for (const row of messages) {
+                if (matchesPredicate(row, pred)) {
+                  Object.assign(row, values);
+                  updated.push({ ...row });
+                }
+              }
+            }
+            return updated;
+          }
+
+          const thenable = {
+            returning: () => ({
+              then: async (resolve: (value: unknown[]) => void) => {
+                const result = await executeUpdate();
+                resolve(result);
+                return result;
+              },
+            }),
+            then: async (resolve: (value: unknown[]) => void) => {
+              const result = await executeUpdate();
+              resolve(result);
+              return result;
+            },
+          };
+
+          return thenable;
+        },
+      }),
+    };
+  }
+
   return {
     conversations,
     messages,
@@ -189,6 +236,7 @@ const inMemoryDb = vi.hoisted(() => {
     createSelectChain,
     createInsertChain,
     createDeleteChain,
+    createUpdateChain,
   };
 });
 
@@ -208,6 +256,7 @@ vi.mock("@repo/database", () => {
       select: () => inMemoryDb.createSelectChain(),
       insert: (table: unknown) => inMemoryDb.createInsertChain(table),
       delete: (table: unknown) => inMemoryDb.createDeleteChain(table),
+      update: (table: unknown) => inMemoryDb.createUpdateChain(table),
     },
   };
 });
@@ -282,13 +331,20 @@ function createToolCompletion(
   } as OpenAI.Chat.ChatCompletion;
 }
 
+function createTitleCompletion(title: string): OpenAI.Chat.ChatCompletion {
+  return createChatCompletion(title);
+}
+
 describe("ChatService", () => {
   beforeEach(() => {
     inMemoryDb.reset();
   });
 
   it("creates a new conversation and returns assistant response", async () => {
-    const openai = createMockOpenAI([createChatCompletion("Hello! How can I help?")]);
+    const openai = createMockOpenAI([
+      createTitleCompletion("Greeting"),
+      createChatCompletion("Hello! How can I help?"),
+    ]);
     const userService = {
       getUserInfoByID: vi.fn().mockResolvedValue({ email: "user@example.com", fullName: "User" }),
     } as unknown as UserService;
@@ -306,11 +362,38 @@ describe("ChatService", () => {
     expect(result.content).toBe("Hello! How can I help?");
     expect(result.role).toBe("assistant");
     expect(inMemoryDb.conversations).toHaveLength(1);
+    expect(inMemoryDb.conversations[0]?.title).toBe("Greeting");
     expect(inMemoryDb.messages).toHaveLength(2);
+  });
+
+  it("falls back to a truncated first message when title generation returns empty", async () => {
+    const openai = createMockOpenAI([
+      createTitleCompletion(""),
+      createChatCompletion("Hello! How can I help?"),
+    ]);
+    const userService = {
+      getUserInfoByID: vi.fn().mockResolvedValue({ email: "user@example.com", fullName: "User" }),
+    } as unknown as UserService;
+    const gmailService = { listThreads: vi.fn() } as unknown as GmailService;
+    const calendarService = {} as unknown as CalendarService;
+
+    const service = new ChatService({
+      openAIClient: openai,
+      userService,
+      gmailService,
+      calendarService,
+    });
+    const result = await service.sendMessage("u1", {
+      message: "Help me schedule a meeting with the engineering team tomorrow",
+    });
+
+    expect(result.content).toBe("Hello! How can I help?");
+    expect(inMemoryDb.conversations[0]?.title).toBe("Help me schedule a meeting with");
   });
 
   it("executes tool calls and sends results back to the LLM", async () => {
     const openai = createMockOpenAI([
+      createTitleCompletion("Inbox search"),
       createToolCompletion("list_threads", { q: "from:boss" }),
       createChatCompletion("I found 0 threads from boss."),
     ]);
@@ -337,6 +420,7 @@ describe("ChatService", () => {
 
   it("reuses an existing conversation when conversationId is provided", async () => {
     const openai = createMockOpenAI([
+      createTitleCompletion("Greeting"),
       createChatCompletion("Got it."),
       createChatCompletion("Still here."),
     ]);
@@ -363,7 +447,10 @@ describe("ChatService", () => {
   });
 
   it("lists conversations for a user", async () => {
-    const openai = createMockOpenAI([createChatCompletion("Hi")]);
+    const openai = createMockOpenAI([
+      createTitleCompletion("Greeting"),
+      createChatCompletion("Hi"),
+    ]);
     const userService = {
       getUserInfoByID: vi.fn().mockResolvedValue({ email: "user@example.com", fullName: "User" }),
     } as unknown as UserService;
@@ -379,10 +466,14 @@ describe("ChatService", () => {
     const list = await service.listConversations("u1");
     expect(list).toHaveLength(1);
     expect(list[0]?.userId).toBe("u1");
+    expect(list[0]?.title).toBe("Greeting");
   });
 
   it("deletes a conversation and its messages", async () => {
-    const openai = createMockOpenAI([createChatCompletion("Hi")]);
+    const openai = createMockOpenAI([
+      createTitleCompletion("Greeting"),
+      createChatCompletion("Hi"),
+    ]);
     const userService = {
       getUserInfoByID: vi.fn().mockResolvedValue({ email: "user@example.com", fullName: "User" }),
     } as unknown as UserService;
@@ -402,7 +493,10 @@ describe("ChatService", () => {
   });
 
   it("throws when a user tries to access another user's conversation", async () => {
-    const openai = createMockOpenAI([createChatCompletion("Hi")]);
+    const openai = createMockOpenAI([
+      createTitleCompletion("Greeting"),
+      createChatCompletion("Hi"),
+    ]);
     const userService = {
       getUserInfoByID: vi.fn().mockResolvedValue({ email: "user@example.com", fullName: "User" }),
     } as unknown as UserService;
