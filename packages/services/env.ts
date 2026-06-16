@@ -17,6 +17,27 @@ const envSchema = z.object({
   DATABASE_URL: z.string().describe("Database URL for postgres connection"),
   CORSAIR_KEK: z.string().describe("Key Encryption Key for Corsair credential encryption"),
   GMAIL_PUBSUB_TOPIC: z.string().describe("GCP Pub/Sub topic for Gmail push notifications"),
+  GLM_BASE_URL: z.string().url().describe("Base URL for the GLM OpenAI-compatible API"),
+  GLM_API_KEY: z.string().describe("API key for the GLM OpenAI-compatible API"),
+  GLM_MODEL: z.string().default("glm-4").describe("Model name to use for chat completions"),
+  CHAT_MAX_HISTORY_MESSAGES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(50)
+    .describe("Maximum number of recent messages to send to the LLM"),
+  CHAT_LLM_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30000)
+    .describe("Timeout for LLM requests in milliseconds"),
+  CHAT_MAX_TOOL_RESULT_LENGTH: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(4000)
+    .describe("Maximum length of a tool result before truncation"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {
