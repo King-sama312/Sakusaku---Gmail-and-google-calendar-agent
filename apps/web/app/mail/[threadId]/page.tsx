@@ -74,7 +74,7 @@ export default function ThreadPage() {
     : "";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center gap-2 border-b p-3">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           Back
@@ -84,7 +84,7 @@ export default function ThreadPage() {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-auto space-y-3 p-6">
+      <div className="flex-1 overflow-auto min-h-0 space-y-3 p-6">
         {messages.map((message, idx) => (
           <EmailViewer key={message.id ?? idx} message={message as Record<string, unknown>} />
         ))}

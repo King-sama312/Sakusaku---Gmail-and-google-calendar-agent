@@ -28,7 +28,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} flex h-screen flex-col`}>
         <GlobalProviders>
           <AppNavbar />
-          <div className="flex-1 overflow-auto">{children}</div>
+          <div className="flex-1 overflow-hidden min-h-0">{children}</div>
         </GlobalProviders>
       </body>
     </html>

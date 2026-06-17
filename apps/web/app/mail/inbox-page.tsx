@@ -123,7 +123,7 @@ export function InboxPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b p-3">
         <Input
           placeholder="Search mail..."
@@ -160,7 +160,7 @@ export function InboxPage() {
         />
       )}
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {isDbLoading || isRefreshing ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 6 }).map((_, i) => (

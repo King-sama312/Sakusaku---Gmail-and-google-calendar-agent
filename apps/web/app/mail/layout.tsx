@@ -7,7 +7,7 @@ export default function MailLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={<aside className="h-full w-56 border-r bg-muted/20" />}>
         <MailSidebar />
       </Suspense>
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="flex-1 overflow-hidden min-h-0">{children}</main>
     </div>
   );
 }
