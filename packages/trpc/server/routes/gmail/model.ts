@@ -184,6 +184,14 @@ export const deleteDraftOutputModel = z.object({
   success: z.boolean(),
 });
 
+export const threadActionInputModel = z.object({
+  threadId: z.string().describe("Thread ID"),
+});
+
+export const threadActionOutputModel = z.object({
+  success: z.boolean(),
+});
+
 export const listLabelsInputModel = z.undefined();
 
 export const listLabelsOutputModel = z.object({

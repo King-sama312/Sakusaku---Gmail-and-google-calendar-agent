@@ -23,6 +23,8 @@ import {
   updateDraftOutputModel,
   deleteDraftInputModel,
   deleteDraftOutputModel,
+  threadActionInputModel,
+  threadActionOutputModel,
   listLabelsInputModel,
   listLabelsOutputModel,
   createLabelInputModel,
@@ -61,6 +63,39 @@ export const gmailRouter = router({
     .output(listThreadsOutputModel)
     .mutation(async ({ input, ctx }) => {
       return await gmailService.syncThreadMetadata(ctx.user.id, input);
+    }),
+
+  starThread: authenticatedProcedure
+    .meta({
+      openapi: { method: "POST", path: getPath("/threads/{threadId}/star"), tags: TAGS, protect: true },
+    })
+    .input(threadActionInputModel)
+    .output(threadActionOutputModel)
+    .mutation(async ({ input, ctx }) => {
+      await gmailService.starThread(ctx.user.id, input.threadId);
+      return { success: true };
+    }),
+
+  unstarThread: authenticatedProcedure
+    .meta({
+      openapi: { method: "POST", path: getPath("/threads/{threadId}/unstar"), tags: TAGS, protect: true },
+    })
+    .input(threadActionInputModel)
+    .output(threadActionOutputModel)
+    .mutation(async ({ input, ctx }) => {
+      await gmailService.unstarThread(ctx.user.id, input.threadId);
+      return { success: true };
+    }),
+
+  trashThread: authenticatedProcedure
+    .meta({
+      openapi: { method: "POST", path: getPath("/threads/{threadId}/trash"), tags: TAGS, protect: true },
+    })
+    .input(threadActionInputModel)
+    .output(threadActionOutputModel)
+    .mutation(async ({ input, ctx }) => {
+      await gmailService.trashThread(ctx.user.id, input.threadId);
+      return { success: true };
     }),
 
   getThread: authenticatedProcedure

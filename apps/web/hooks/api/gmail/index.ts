@@ -39,6 +39,33 @@ export const useSyncThreadMetadata = () => {
   });
 };
 
+export const useStarThread = () => {
+  const utils = trpc.useUtils();
+  return trpc.gmail.starThread.useMutation({
+    onSuccess: () => {
+      utils.gmail.listThreadsFromDb.invalidate();
+    },
+  });
+};
+
+export const useUnstarThread = () => {
+  const utils = trpc.useUtils();
+  return trpc.gmail.unstarThread.useMutation({
+    onSuccess: () => {
+      utils.gmail.listThreadsFromDb.invalidate();
+    },
+  });
+};
+
+export const useTrashThread = () => {
+  const utils = trpc.useUtils();
+  return trpc.gmail.trashThread.useMutation({
+    onSuccess: () => {
+      utils.gmail.listThreadsFromDb.invalidate();
+    },
+  });
+};
+
 export const useGmailThread = (input: { id: string; format?: "minimal" | "full" | "metadata" }) => {
   return trpc.gmail.getThread.useQuery(
     { ...input, format: input.format ?? "full" },

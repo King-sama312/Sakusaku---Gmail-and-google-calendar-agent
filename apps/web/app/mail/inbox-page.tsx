@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useGmailThreadsFromDb, useSyncThreadMetadata } from "~/hooks/api/gmail";
+import {
+  useGmailThreadsFromDb,
+  useSyncThreadMetadata,
+  useStarThread,
+  useUnstarThread,
+  useTrashThread,
+} from "~/hooks/api/gmail";
 import { useRequireAuth } from "~/hooks/api/auth";
 import { trpc } from "~/trpc/client";
 import { env } from "~/env.js";
@@ -14,6 +20,8 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { MailNavbar, NAV_ITEMS } from "~/components/mail-navbar";
 import { ComposeEmail } from "~/components/compose-email";
+import { cn } from "~/lib/utils";
+import { Star, Trash2 } from "lucide-react";
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -49,6 +57,9 @@ export function InboxPage() {
   }, [debouncedQuery, folder, category]);
 
   const syncThreadMetadata = useSyncThreadMetadata();
+  const starThread = useStarThread();
+  const unstarThread = useUnstarThread();
+  const trashThread = useTrashThread();
   const utils = trpc.useUtils();
 
   // Always read from the local metadata cache.
@@ -210,32 +221,78 @@ export function InboxPage() {
                 Updating…
               </div>
             )}
-            {threads.map((thread) => (
-              <Link
-                key={thread.id}
-                href={`/mail/${thread.id}`}
-                className="flex flex-col gap-1 px-4 py-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium truncate">
-                    {thread.subject || "(no subject)"}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {thread.date && (
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(thread.date)}
+            {threads.map((thread) => {
+              const isStarred = thread.labelIds?.includes("STARRED");
+              return (
+                <div
+                  key={thread.id}
+                  className="group flex flex-col gap-1 px-4 py-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Link
+                      href={`/mail/${thread.id}`}
+                      className="flex-1 min-w-0 flex items-center gap-2"
+                    >
+                      <span className="text-sm font-medium truncate">
+                        {thread.subject || "(no subject)"}
                       </span>
-                    )}
-                    {thread.from && (
-                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                        {thread.from}
-                      </span>
-                    )}
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 group-hover:hidden">
+                        {thread.date && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(thread.date)}
+                          </span>
+                        )}
+                        {thread.from && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                            {thread.from}
+                          </span>
+                        )}
+                      </div>
+                      <div className="hidden group-hover:flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isStarred) {
+                              unstarThread.mutate({ threadId: thread.id ?? "" });
+                            } else {
+                              starThread.mutate({ threadId: thread.id ?? "" });
+                            }
+                          }}
+                        >
+                          <Star
+                            className={cn(
+                              "h-4 w-4",
+                              isStarred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground",
+                            )}
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            trashThread.mutate({ threadId: thread.id ?? "" });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
+                  <Link href={`/mail/${thread.id}`} className="block">
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {thread.snippet || ""}
+                    </p>
+                  </Link>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-1">{thread.snippet || ""}</p>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </ScrollArea>

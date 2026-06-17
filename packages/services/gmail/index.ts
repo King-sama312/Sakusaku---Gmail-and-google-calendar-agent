@@ -295,6 +295,68 @@ class GmailService {
     };
   }
 
+  private async updateCachedThreadLabels(
+    userId: string,
+    threadId: string,
+    add: string[],
+    remove: string[],
+  ) {
+    const row = await db
+      .select({ labelIds: gmailThreadMetadataTable.labelIds })
+      .from(gmailThreadMetadataTable)
+      .where(
+        and(
+          eq(gmailThreadMetadataTable.userId, userId),
+          eq(gmailThreadMetadataTable.threadId, threadId),
+        ),
+      )
+      .limit(1);
+
+    const [first] = row;
+    if (!first) return;
+
+    const current = first.labelIds ?? [];
+    const next = [
+      ...current.filter((id) => !remove.includes(id)),
+      ...add.filter((id) => !current.includes(id)),
+    ];
+
+    await db
+      .update(gmailThreadMetadataTable)
+      .set({ labelIds: next })
+      .where(
+        and(
+          eq(gmailThreadMetadataTable.userId, userId),
+          eq(gmailThreadMetadataTable.threadId, threadId),
+        ),
+      );
+  }
+
+  async starThread(userId: string, threadId: string) {
+    await this.tenant(userId).gmail.api.threads.modify({
+      id: threadId,
+      addLabelIds: ["STARRED"],
+    });
+    await this.updateCachedThreadLabels(userId, threadId, ["STARRED"], []);
+  }
+
+  async unstarThread(userId: string, threadId: string) {
+    await this.tenant(userId).gmail.api.threads.modify({
+      id: threadId,
+      removeLabelIds: ["STARRED"],
+    });
+    await this.updateCachedThreadLabels(userId, threadId, [], ["STARRED"]);
+  }
+
+  async trashThread(userId: string, threadId: string) {
+    await this.tenant(userId).gmail.api.threads.modify({
+      id: threadId,
+      addLabelIds: ["TRASH"],
+      removeLabelIds: ["INBOX"],
+    });
+    await this.updateCachedThreadLabels(userId, threadId, ["TRASH"], ["INBOX"]);
+  }
+
   async getThread(userId: string, params: GetThreadInputType) {
     const { id, format } = await getThreadInput.parseAsync(params);
     return this.tenant(userId).gmail.api.threads.get({ id, format });
