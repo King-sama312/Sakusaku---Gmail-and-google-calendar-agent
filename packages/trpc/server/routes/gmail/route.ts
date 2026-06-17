@@ -15,6 +15,8 @@ import {
   sendMessageOutputModel,
   listDraftsInputModel,
   listDraftsOutputModel,
+  getDraftInputModel,
+  getDraftOutputModel,
   createDraftInputModel,
   createDraftOutputModel,
   updateDraftInputModel,
@@ -51,6 +53,16 @@ export const gmailRouter = router({
       return await gmailService.listThreadsFromDb(ctx.user.id, input);
     }),
 
+  syncThreadMetadata: authenticatedProcedure
+    .meta({
+      openapi: { method: "POST", path: getPath("/threads/sync"), tags: TAGS, protect: true },
+    })
+    .input(listThreadsInputModel)
+    .output(listThreadsOutputModel)
+    .mutation(async ({ input, ctx }) => {
+      return await gmailService.syncThreadMetadata(ctx.user.id, input);
+    }),
+
   getThread: authenticatedProcedure
     .meta({ openapi: { method: "GET", path: getPath("/threads/{id}"), tags: TAGS, protect: true } })
     .input(getThreadInputModel)
@@ -85,6 +97,14 @@ export const gmailRouter = router({
     .output(listDraftsOutputModel)
     .query(async ({ input, ctx }) => {
       return await gmailService.listDrafts(ctx.user.id, input);
+    }),
+
+  getDraft: authenticatedProcedure
+    .meta({ openapi: { method: "GET", path: getPath("/drafts/{id}"), tags: TAGS, protect: true } })
+    .input(getDraftInputModel)
+    .output(getDraftOutputModel)
+    .query(async ({ input, ctx }) => {
+      return await gmailService.getDraft(ctx.user.id, input);
     }),
 
   createDraft: authenticatedProcedure

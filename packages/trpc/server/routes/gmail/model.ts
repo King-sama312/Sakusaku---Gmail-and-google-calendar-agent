@@ -17,6 +17,7 @@ export const listThreadsOutputModel = z.object({
         historyId: z.string().optional(),
         subject: z.string().optional(),
         from: z.string().optional(),
+        labelIds: z.array(z.string()).optional(),
       }),
     )
     .optional(),
@@ -50,6 +51,7 @@ export const getThreadOutputModel = z.object({
 export const listThreadsFromDbInputModel = z.object({
   limit: z.number().int().positive().max(500).optional().describe("Max results"),
   offset: z.number().int().min(0).optional().describe("Offset for pagination"),
+  labelIds: z.array(z.string()).optional().describe("Filter by cached label IDs"),
 });
 
 export const listThreadsFromDbOutputModel = z.object({
@@ -61,6 +63,7 @@ export const listThreadsFromDbOutputModel = z.object({
         historyId: z.string().optional(),
         subject: z.string().optional(),
         from: z.string().optional(),
+        labelIds: z.array(z.string()).optional(),
       }),
     )
     .optional(),
@@ -106,6 +109,21 @@ export const listDraftsInputModel = z.object({
   maxResults: z.number().int().positive().max(500).optional().describe("Max results"),
   pageToken: z.string().optional().describe("Page token"),
   q: z.string().optional().describe("Search query"),
+});
+
+export const getDraftInputModel = z.object({
+  id: z.string().describe("Draft ID"),
+});
+
+export const getDraftOutputModel = z.object({
+  id: z.string().optional(),
+  message: z
+    .object({
+      id: z.string().optional(),
+      threadId: z.string().optional(),
+      payload: z.any().optional(),
+    })
+    .optional(),
 });
 
 export const listDraftsOutputModel = z.object({

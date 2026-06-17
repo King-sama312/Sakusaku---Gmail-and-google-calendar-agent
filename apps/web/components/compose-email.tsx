@@ -15,7 +15,7 @@ import {
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
-import { useSendEmail, useCreateDraft } from "~/hooks/api/gmail";
+import { useSendEmail, useCreateDraft, useUpdateDraft } from "~/hooks/api/gmail";
 
 const composeSchema = z.object({
   to: z.string().min(1, "Recipient is required"),
@@ -29,57 +29,87 @@ type ComposeFormValues = z.infer<typeof composeSchema>;
 
 interface ComposeEmailProps {
   initialTo?: string;
+  initialCc?: string;
+  initialBcc?: string;
   initialSubject?: string;
   initialBody?: string;
   threadId?: string;
+  draftId?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 export function ComposeEmail({
   initialTo = "",
+  initialCc = "",
+  initialBcc = "",
   initialSubject = "",
   initialBody = "",
   threadId,
+  draftId,
   onSuccess,
   onCancel,
 }: ComposeEmailProps) {
   const { mutateAsync: sendEmail, isPending: isSending } = useSendEmail();
   const { mutateAsync: saveDraft, isPending: isSavingDraft } = useCreateDraft();
+  const { mutateAsync: updateDraft, isPending: isUpdatingDraft } = useUpdateDraft();
 
   const form = useForm<ComposeFormValues>({
     resolver: zodResolver(composeSchema),
     defaultValues: {
       to: initialTo,
-      cc: "",
-      bcc: "",
+      cc: initialCc,
+      bcc: initialBcc,
       subject: initialSubject,
       body: initialBody,
     },
   });
 
   async function handleSend(values: ComposeFormValues) {
-    await sendEmail({
-      to: values.to,
-      subject: values.subject,
-      body: values.body,
-      cc: values.cc || undefined,
-      bcc: values.bcc || undefined,
-      threadId,
-    });
-    onSuccess?.();
+    try {
+      await sendEmail({
+        to: values.to,
+        subject: values.subject,
+        body: values.body,
+        cc: values.cc || undefined,
+        bcc: values.bcc || undefined,
+        threadId,
+      });
+      onSuccess?.();
+    } catch (err) {
+      form.setError("root", {
+        message: err instanceof Error ? err.message : "Failed to send email",
+      });
+    }
   }
 
   async function handleSaveDraft(values: ComposeFormValues) {
-    await saveDraft({
-      to: values.to,
-      subject: values.subject,
-      body: values.body,
-      cc: values.cc || undefined,
-      bcc: values.bcc || undefined,
-      threadId,
-    });
-    onSuccess?.();
+    try {
+      if (draftId) {
+        await updateDraft({
+          id: draftId,
+          to: values.to,
+          subject: values.subject,
+          body: values.body,
+          cc: values.cc || undefined,
+          bcc: values.bcc || undefined,
+        });
+      } else {
+        await saveDraft({
+          to: values.to,
+          subject: values.subject,
+          body: values.body,
+          cc: values.cc || undefined,
+          bcc: values.bcc || undefined,
+          threadId,
+        });
+      }
+      onSuccess?.();
+    } catch (err) {
+      form.setError("root", {
+        message: err instanceof Error ? err.message : "Failed to save draft",
+      });
+    }
   }
 
   return (
@@ -151,10 +181,13 @@ export function ComposeEmail({
           )}
         />
         <div className="flex items-center gap-2">
+          {form.formState.errors.root && (
+            <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
+          )}
           <Button
             type="button"
             onClick={form.handleSubmit(handleSend)}
-            disabled={isSending || isSavingDraft}
+            disabled={isSending || isSavingDraft || isUpdatingDraft}
           >
             {isSending ? "Sending..." : "Send"}
           </Button>
@@ -162,9 +195,9 @@ export function ComposeEmail({
             type="button"
             variant="outline"
             onClick={form.handleSubmit(handleSaveDraft)}
-            disabled={isSending || isSavingDraft}
+            disabled={isSending || isSavingDraft || isUpdatingDraft}
           >
-            {isSavingDraft ? "Saving..." : "Save draft"}
+            {isUpdatingDraft ? "Updating..." : isSavingDraft ? "Saving..." : "Save draft"}
           </Button>
           {onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel}>

@@ -1,4 +1,6 @@
 import { corsair } from "../corsair";
+import { db, eq, and, sql, desc, arrayOverlaps, type SQL } from "@repo/database";
+import { gmailThreadMetadataTable } from "@repo/database/schema";
 import {
   type ListThreadsInputType,
   listThreadsInput,
@@ -16,6 +18,8 @@ import {
   updateDraftInput,
   type DeleteDraftInputType,
   deleteDraftInput,
+  type GetDraftInputType,
+  getDraftInput,
   type CreateLabelInputType,
   createLabelInput,
   type DeleteLabelInputType,
@@ -56,17 +60,32 @@ function getTextFromPayload(payload: {
 
 function extractThreadMetadata(thread: {
   messages?: Array<{
+    labelIds?: string[];
     payload?: {
       headers?: Array<{ name?: string; value?: string }>;
     };
   }>;
-}): { subject?: string; from?: string } {
+}): { subject?: string; from?: string; labelIds?: string[] } {
   const firstMessage = thread.messages?.[0];
   const headers = firstMessage?.payload?.headers;
   return {
     subject: extractHeader(headers, "Subject"),
     from: extractHeader(headers, "From"),
+    labelIds: firstMessage?.labelIds,
   };
+}
+
+function encodeMimeHeader(value: string): string {
+  // If the value is pure ASCII, return as-is.
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+
+  // RFC 2047 encode non-ASCII text.
+  const encoded = Buffer.from(value, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return `=?UTF-8?B?${encoded}?=`;
 }
 
 function buildMimeMessage(params: {
@@ -75,15 +94,19 @@ function buildMimeMessage(params: {
   body: string;
   cc?: string;
   bcc?: string;
+  inReplyTo?: string;
+  references?: string;
 }): string {
   const headers: string[] = [
     `To: ${params.to}`,
-    `Subject: ${params.subject}`,
+    `Subject: ${encodeMimeHeader(params.subject)}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
   ];
   if (params.cc) headers.push(`Cc: ${params.cc}`);
   if (params.bcc) headers.push(`Bcc: ${params.bcc}`);
+  if (params.inReplyTo) headers.push(`In-Reply-To: ${params.inReplyTo}`);
+  if (params.references) headers.push(`References: ${params.references}`);
   headers.push("", params.body);
   const raw = headers.join("\r\n");
   return Buffer.from(raw)
@@ -100,7 +123,7 @@ class GmailService {
 
   private async enrichThreadsWithMetadata(
     userId: string,
-    threads: Array<{ id?: string; snippet?: string; historyId?: string }>,
+    threads: Array<{ id?: string; snippet?: string; historyId?: string; labelIds?: string[] }>,
   ) {
     const tenant = this.tenant(userId);
     const enriched = await Promise.all(
@@ -139,22 +162,121 @@ class GmailService {
     };
   }
 
-  async listThreadsFromDb(userId: string, params: { limit?: number; offset?: number } = {}) {
-    const { limit = 20, offset = 0 } = params;
-    const threads = await this.tenant(userId).gmail.db.threads.list({
-      limit,
-      offset,
+  private buildMetadataFilters(userId: string, labelIds?: string[]) {
+    const filters: SQL[] = [eq(gmailThreadMetadataTable.userId, userId)];
+    if (labelIds && labelIds.length > 0) {
+      filters.push(arrayOverlaps(gmailThreadMetadataTable.labelIds, labelIds));
+    }
+    return filters;
+  }
+
+  private async upsertThreadMetadata(
+    userId: string,
+    threads: Array<{
+      id?: string;
+      snippet?: string;
+      historyId?: string;
+      subject?: string;
+      from?: string;
+      labelIds?: string[];
+    }>,
+  ) {
+    if (threads.length === 0) return;
+
+    const values = threads
+      .filter((t) => t.id)
+      .map((t) => ({
+        userId,
+        threadId: t.id!,
+        subject: t.subject ?? null,
+        fromAddress: t.from ?? null,
+        snippet: t.snippet ?? null,
+        historyId: t.historyId ?? null,
+        labelIds: t.labelIds ?? null,
+        updatedAt: new Date(),
+      }));
+
+    if (values.length === 0) return;
+
+    await db
+      .insert(gmailThreadMetadataTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [gmailThreadMetadataTable.userId, gmailThreadMetadataTable.threadId],
+        set: {
+          subject: sql`excluded.subject`,
+          fromAddress: sql`excluded.from_address`,
+          snippet: sql`excluded.snippet`,
+          historyId: sql`excluded.history_id`,
+          labelIds: sql`excluded.label_ids`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      });
+  }
+
+  async syncThreadMetadata(userId: string, params: ListThreadsInputType = {}) {
+    const {
+      q,
+      maxResults = 100,
+      pageToken,
+      labelIds,
+      includeSpamTrash,
+    } = await listThreadsInput.parseAsync(params);
+
+    const response = await this.tenant(userId).gmail.api.threads.list({
+      q,
+      maxResults,
+      pageToken,
+      labelIds,
+      includeSpamTrash,
     });
 
-    const summaries = threads.map((t) => ({
-      id: t.data.id,
-      snippet: t.data.snippet,
-      historyId: t.data.historyId,
-    }));
+    const threads = response.threads ?? [];
+    const enriched = await this.enrichThreadsWithMetadata(userId, threads);
+
+    await this.upsertThreadMetadata(
+      userId,
+      enriched.map((t) => ({
+        id: t.id,
+        snippet: t.snippet,
+        historyId: t.historyId,
+        subject: t.subject,
+        from: t.from,
+        labelIds: t.labelIds,
+      })),
+    );
 
     return {
-      threads: await this.enrichThreadsWithMetadata(userId, summaries),
-      resultSizeEstimate: threads.length,
+      ...response,
+      threads: enriched,
+    };
+  }
+
+  async listThreadsFromDb(
+    userId: string,
+    params: { limit?: number; offset?: number; labelIds?: string[] } = {},
+  ) {
+    const { limit = 20, offset = 0, labelIds } = params;
+    const filters = this.buildMetadataFilters(userId, labelIds);
+
+    const cached = await db
+      .select()
+      .from(gmailThreadMetadataTable)
+      .where(and(...filters))
+      .orderBy(desc(gmailThreadMetadataTable.updatedAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      threads: cached.map((t) => ({
+        id: t.threadId,
+        snippet: t.snippet ?? undefined,
+        historyId: t.historyId ?? undefined,
+        subject: t.subject ?? undefined,
+        from: t.fromAddress ?? undefined,
+        labelIds: t.labelIds ?? undefined,
+      })),
+      resultSizeEstimate: cached.length,
     };
   }
 
@@ -181,7 +303,28 @@ class GmailService {
 
   async sendMessage(userId: string, params: SendMessageInputType) {
     const { to, subject, body, cc, bcc, threadId } = await sendMessageInput.parseAsync(params);
-    const raw = buildMimeMessage({ to, subject, body, cc, bcc });
+
+    let inReplyTo: string | undefined;
+    let references: string | undefined;
+
+    if (threadId) {
+      try {
+        const thread = await this.tenant(userId).gmail.api.threads.get({
+          id: threadId,
+          format: "metadata",
+        });
+        const lastMessage = thread.messages?.[thread.messages.length - 1];
+        const messageId = extractHeader(lastMessage?.payload?.headers, "Message-ID");
+        if (messageId) {
+          inReplyTo = messageId;
+          references = messageId;
+        }
+      } catch {
+        // Best-effort; Gmail can still thread by threadId.
+      }
+    }
+
+    const raw = buildMimeMessage({ to, subject, body, cc, bcc, inReplyTo, references });
     return this.tenant(userId).gmail.api.messages.send({ raw, threadId });
   }
 
@@ -192,6 +335,11 @@ class GmailService {
       pageToken,
       q,
     });
+  }
+
+  async getDraft(userId: string, params: GetDraftInputType) {
+    const { id } = await getDraftInput.parseAsync(params);
+    return this.tenant(userId).gmail.api.drafts.get({ id });
   }
 
   async createDraft(userId: string, params: CreateDraftInputType) {

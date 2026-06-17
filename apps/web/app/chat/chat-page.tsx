@@ -131,7 +131,7 @@ export default function ChatPage() {
   const conversationList = conversations ?? [];
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Sidebar for larger screens */}
       <aside className="hidden w-72 flex-col border-r bg-muted/30 md:flex">
         <div className="flex items-center justify-between border-b p-3">

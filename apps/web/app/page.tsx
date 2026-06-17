@@ -17,7 +17,7 @@ export default function Home() {
   }, [user, router]);
 
   return (
-    <main className="min-h-screen min-w-screen flex justify-center items-center">
+    <main className="flex h-full items-center justify-center">
       <div>
         <h1 className="text-3xl">Sakusaku- your email and calendar AI buddy</h1>
       </div>

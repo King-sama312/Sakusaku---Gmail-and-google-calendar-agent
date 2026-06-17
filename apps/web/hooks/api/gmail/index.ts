@@ -20,12 +20,22 @@ export const useGmailThreadsFromDb = (
   input: {
     limit?: number;
     offset?: number;
+    labelIds?: string[];
   },
   options?: { enabled?: boolean },
 ) => {
   return trpc.gmail.listThreadsFromDb.useQuery(input, {
     enabled: options?.enabled ?? true,
     placeholderData: (previousData) => previousData,
+  });
+};
+
+export const useSyncThreadMetadata = () => {
+  const utils = trpc.useUtils();
+  return trpc.gmail.syncThreadMetadata.useMutation({
+    onSuccess: () => {
+      utils.gmail.listThreadsFromDb.invalidate();
+    },
   });
 };
 
@@ -67,6 +77,15 @@ export const useGmailDrafts = (input: { maxResults?: number; pageToken?: string;
   return trpc.gmail.listDrafts.useQuery(input, {
     enabled: true,
   });
+};
+
+export const useGmailDraft = (id: string | null | undefined) => {
+  return trpc.gmail.getDraft.useQuery(
+    { id: id ?? "" },
+    {
+      enabled: !!id,
+    },
+  );
 };
 
 export const useCreateDraft = () => {

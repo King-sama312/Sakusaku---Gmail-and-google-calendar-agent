@@ -43,6 +43,11 @@ export const listDraftsInput = z.object({
 });
 export type ListDraftsInputType = z.infer<typeof listDraftsInput>;
 
+export const getDraftInput = z.object({
+  id: z.string().describe("Draft ID"),
+});
+export type GetDraftInputType = z.infer<typeof getDraftInput>;
+
 export const createDraftInput = z.object({
   to: z.string().describe("Recipient email address"),
   subject: z.string().describe("Email subject"),

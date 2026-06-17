@@ -9,10 +9,10 @@ const CALENDAR_WATCH_URL = "https://www.googleapis.com/calendar/v3/calendars/pri
 type TenantKeys = {
   get_access_token(): Promise<string | null>;
   get_refresh_token(): Promise<string | null>;
-  get_expires_at(): Promise<number | null>;
+  get_expires_at(): Promise<string | null>;
   set_access_token(v: string | null): Promise<void>;
   set_refresh_token(v: string | null): Promise<void>;
-  set_expires_at(v: number | null): Promise<void>;
+  set_expires_at(v: string | null): Promise<void>;
 };
 
 async function createUserOAuth2Client(userId: string): Promise<OAuth2Client> {
@@ -35,7 +35,7 @@ async function createUserOAuth2Client(userId: string): Promise<OAuth2Client> {
   client.setCredentials({
     access_token: accessToken ?? undefined,
     refresh_token: refreshToken ?? undefined,
-    expiry_date: expiresAt ?? undefined,
+    expiry_date: expiresAt ? Number(expiresAt) : undefined,
   });
 
   client.on("tokens", async (tokens: Credentials) => {
@@ -49,8 +49,9 @@ async function createUserOAuth2Client(userId: string): Promise<OAuth2Client> {
         await tenant.googlecalendar.keys.set_refresh_token(tokens.refresh_token);
       }
       if (tokens.expiry_date) {
-        await tenant.gmail.keys.set_expires_at(tokens.expiry_date);
-        await tenant.googlecalendar.keys.set_expires_at(tokens.expiry_date);
+        const expiresAt = String(tokens.expiry_date);
+        await tenant.gmail.keys.set_expires_at(expiresAt);
+        await tenant.googlecalendar.keys.set_expires_at(expiresAt);
       }
     } catch (err) {
       logger.error("Failed to persist refreshed OAuth tokens", { userId, error: err });

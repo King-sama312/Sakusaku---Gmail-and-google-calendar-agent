@@ -23,10 +23,10 @@ export const corsair = createCorsair({
 export type TenantKeys = {
   get_access_token(): Promise<string | null>;
   get_refresh_token(): Promise<string | null>;
-  get_expires_at(): Promise<number | null>;
+  get_expires_at(): Promise<string | null>;
   set_access_token(value: string | null): Promise<void>;
   set_refresh_token(value: string | null): Promise<void>;
-  set_expires_at(value: number | null): Promise<void>;
+  set_expires_at(value: string | null): Promise<void>;
 };
 
 /** Ensure Corsair integration rows and OAuth app credentials are set up. Idempotent. */
@@ -84,7 +84,7 @@ export async function setTenantGoogleTokens(
   }
 
   if (tokens.expiresIn) {
-    const expiresAt = Date.now() + tokens.expiresIn * 1000;
+    const expiresAt = String(Date.now() + tokens.expiresIn * 1000);
     await tenant.gmail.keys.set_expires_at(expiresAt);
     await tenant.googlecalendar.keys.set_expires_at(expiresAt);
   }

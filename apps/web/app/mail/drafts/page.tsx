@@ -1,26 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { useGmailDrafts, useDeleteDraft } from "~/hooks/api/gmail";
+import { useGmailDrafts, useGmailDraft, useDeleteDraft } from "~/hooks/api/gmail";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { ComposeEmail } from "~/components/compose-email";
+import { parseMessage } from "~/lib/email";
 
 export default function DraftsPage() {
   const [editDraftId, setEditDraftId] = useState<string | null>(null);
 
   const { data: draftsData, isLoading } = useGmailDrafts({});
+  const { data: draftDetail, isLoading: isLoadingDraftDetail } = useGmailDraft(editDraftId);
   const { mutateAsync: deleteDraft } = useDeleteDraft();
 
   const drafts = draftsData?.drafts ?? [];
 
-  const editingDraft = drafts.find((d) => d.id === editDraftId);
-
   async function handleDelete(id: string) {
     await deleteDraft({ id });
   }
+
+  const draftPayload = draftDetail?.message?.payload as Record<string, unknown> | undefined;
+  const parsedDraft = draftPayload
+    ? parseMessage(draftDetail?.message as Record<string, unknown>)
+    : null;
+  const draftTo = parsedDraft?.headers.to ?? "";
+  const draftCc = parsedDraft?.headers.cc ?? "";
+  const draftBcc = parsedDraft?.headers.bcc ?? "";
+  const draftSubject = parsedDraft?.headers.subject ?? "";
+  const draftBody = parsedDraft?.content.textPlain ?? "";
 
   return (
     <div className="flex flex-col h-full">
@@ -75,12 +85,21 @@ export default function DraftsPage() {
           <DialogHeader>
             <DialogTitle>Edit draft</DialogTitle>
           </DialogHeader>
-          {editingDraft && (
+          {isLoadingDraftDetail ? (
+            <div className="space-y-3">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          ) : (
             <ComposeEmail
-              initialTo=""
-              initialSubject=""
-              initialBody=""
-              threadId={editingDraft.message?.threadId}
+              initialTo={draftTo}
+              initialCc={draftCc}
+              initialBcc={draftBcc}
+              initialSubject={draftSubject}
+              initialBody={draftBody}
+              draftId={editDraftId ?? undefined}
+              threadId={draftDetail?.message?.threadId}
               onSuccess={() => setEditDraftId(null)}
               onCancel={() => setEditDraftId(null)}
             />

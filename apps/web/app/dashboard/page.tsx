@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const { user } = useGetUserInfo();
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-full p-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       {user && <p className="mt-2 text-muted-foreground">Welcome back, {user.fullName}</p>}
       <div className="mt-6 flex gap-3">

@@ -6,7 +6,7 @@ export default function ChatPageWrapper() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <Skeleton className="h-12 w-48" />
         </div>
       }
