@@ -179,7 +179,7 @@ export default function MailInboxPage() {
       <MailNavbar selectedId={selectedLabelId} onSelect={setSelectedLabelId} />
 
       <ScrollArea className="flex-1">
-        {isLoading || isRefreshing ? (
+        {isLoading || isApiFetching || isDbFetching || isRefreshing ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />
