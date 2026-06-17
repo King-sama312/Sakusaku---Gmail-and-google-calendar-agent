@@ -48,6 +48,7 @@ export const createDraftInput = z.object({
   subject: z.string().describe("Email subject"),
   body: z.string().describe("Email body (plain text)"),
   cc: z.string().optional().describe("CC recipient"),
+  bcc: z.string().optional().describe("BCC recipient"),
   threadId: z.string().optional().describe("Thread ID to reply to"),
 });
 export type CreateDraftInputType = z.infer<typeof createDraftInput>;
@@ -58,6 +59,7 @@ export const updateDraftInput = z.object({
   subject: z.string().optional().describe("Email subject"),
   body: z.string().optional().describe("Email body (plain text)"),
   cc: z.string().optional().describe("CC recipient"),
+  bcc: z.string().optional().describe("BCC recipient"),
 });
 export type UpdateDraftInputType = z.infer<typeof updateDraftInput>;
 

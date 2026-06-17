@@ -30,6 +30,30 @@ function extractHeader(
   return headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value;
 }
 
+function base64UrlDecode(input: string): string {
+  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function getTextFromPayload(payload: {
+  mimeType?: string;
+  body?: { data?: string };
+  parts?: Array<{ mimeType?: string; body?: { data?: string } }>;
+}): string | undefined {
+  if (payload.mimeType === "text/plain" && payload.body?.data) {
+    return base64UrlDecode(payload.body.data);
+  }
+  if (Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        return base64UrlDecode(part.body.data);
+      }
+    }
+  }
+  return undefined;
+}
+
 function extractThreadMetadata(thread: {
   messages?: Array<{
     payload?: {
@@ -50,6 +74,7 @@ function buildMimeMessage(params: {
   subject: string;
   body: string;
   cc?: string;
+  bcc?: string;
 }): string {
   const headers: string[] = [
     `To: ${params.to}`,
@@ -58,6 +83,7 @@ function buildMimeMessage(params: {
     "Content-Type: text/plain; charset=UTF-8",
   ];
   if (params.cc) headers.push(`Cc: ${params.cc}`);
+  if (params.bcc) headers.push(`Bcc: ${params.bcc}`);
   headers.push("", params.body);
   const raw = headers.join("\r\n");
   return Buffer.from(raw)
@@ -154,8 +180,8 @@ class GmailService {
   }
 
   async sendMessage(userId: string, params: SendMessageInputType) {
-    const { to, subject, body, cc, threadId } = await sendMessageInput.parseAsync(params);
-    const raw = buildMimeMessage({ to, subject, body, cc });
+    const { to, subject, body, cc, bcc, threadId } = await sendMessageInput.parseAsync(params);
+    const raw = buildMimeMessage({ to, subject, body, cc, bcc });
     return this.tenant(userId).gmail.api.messages.send({ raw, threadId });
   }
 
@@ -169,19 +195,51 @@ class GmailService {
   }
 
   async createDraft(userId: string, params: CreateDraftInputType) {
-    const { to, subject, body, cc, threadId } = await createDraftInput.parseAsync(params);
-    const raw = buildMimeMessage({ to, subject, body, cc });
+    const { to, subject, body, cc, bcc, threadId } = await createDraftInput.parseAsync(params);
+    const raw = buildMimeMessage({ to, subject, body, cc, bcc });
     return this.tenant(userId).gmail.api.drafts.create({
       draft: { message: { raw, threadId } },
     });
   }
 
   async updateDraft(userId: string, params: UpdateDraftInputType) {
-    const { id, to, subject, body, cc } = await updateDraftInput.parseAsync(params);
-    const raw = to && subject && body ? buildMimeMessage({ to, subject, body, cc }) : undefined;
+    const { id, to, subject, body, cc, bcc } = await updateDraftInput.parseAsync(params);
+
+    // Fetch the existing draft so partial updates preserve untouched fields.
+    const existing = await this.tenant(userId).gmail.api.drafts.get({ id });
+    const existingPayload = existing.message?.payload as
+      | {
+          mimeType?: string;
+          headers?: Array<{ name?: string; value?: string }>;
+          body?: { data?: string };
+          parts?: Array<{ mimeType?: string; body?: { data?: string } }>;
+        }
+      | undefined;
+
+    const headers = existingPayload?.headers;
+    const existingBody = existingPayload ? getTextFromPayload(existingPayload) : undefined;
+
+    const finalTo = to ?? extractHeader(headers, "To");
+    const finalSubject = subject ?? extractHeader(headers, "Subject");
+    const finalBody = body ?? existingBody ?? "";
+    const finalCc = cc ?? extractHeader(headers, "Cc");
+    const finalBcc = bcc ?? extractHeader(headers, "Bcc");
+
+    if (!finalTo || !finalSubject) {
+      throw new Error("Draft is missing required recipient or subject");
+    }
+
+    const raw = buildMimeMessage({
+      to: finalTo,
+      subject: finalSubject,
+      body: finalBody,
+      cc: finalCc,
+      bcc: finalBcc,
+    });
+
     return this.tenant(userId).gmail.api.drafts.update({
       id,
-      draft: raw ? { message: { raw } } : undefined,
+      draft: { message: { raw } },
     });
   }
 

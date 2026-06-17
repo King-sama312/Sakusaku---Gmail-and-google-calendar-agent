@@ -20,6 +20,7 @@ import { useSendEmail, useCreateDraft } from "~/hooks/api/gmail";
 const composeSchema = z.object({
   to: z.string().min(1, "Recipient is required"),
   cc: z.string().optional(),
+  bcc: z.string().optional(),
   subject: z.string().min(1, "Subject is required"),
   body: z.string().min(1, "Body is required"),
 });
@@ -51,6 +52,7 @@ export function ComposeEmail({
     defaultValues: {
       to: initialTo,
       cc: "",
+      bcc: "",
       subject: initialSubject,
       body: initialBody,
     },
@@ -62,6 +64,7 @@ export function ComposeEmail({
       subject: values.subject,
       body: values.body,
       cc: values.cc || undefined,
+      bcc: values.bcc || undefined,
       threadId,
     });
     onSuccess?.();
@@ -73,6 +76,7 @@ export function ComposeEmail({
       subject: values.subject,
       body: values.body,
       cc: values.cc || undefined,
+      bcc: values.bcc || undefined,
       threadId,
     });
     onSuccess?.();
@@ -102,6 +106,19 @@ export function ComposeEmail({
               <FormLabel>CC</FormLabel>
               <FormControl>
                 <Input placeholder="cc@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="bcc"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>BCC</FormLabel>
+              <FormControl>
+                <Input placeholder="bcc@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

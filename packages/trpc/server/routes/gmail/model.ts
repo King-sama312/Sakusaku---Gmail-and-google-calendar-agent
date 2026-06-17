@@ -91,6 +91,7 @@ export const sendMessageInputModel = z.object({
   subject: z.string().describe("Subject"),
   body: z.string().describe("Plain text body"),
   cc: z.string().optional().describe("CC recipient"),
+  bcc: z.string().optional().describe("BCC recipient"),
   threadId: z.string().optional().describe("Thread to reply to"),
 });
 
@@ -130,6 +131,7 @@ export const createDraftInputModel = z.object({
   subject: z.string().describe("Subject"),
   body: z.string().describe("Plain text body"),
   cc: z.string().optional().describe("CC recipient"),
+  bcc: z.string().optional().describe("BCC recipient"),
   threadId: z.string().optional().describe("Thread to reply to"),
 });
 
@@ -149,6 +151,7 @@ export const updateDraftInputModel = z.object({
   subject: z.string().optional().describe("Subject"),
   body: z.string().optional().describe("Plain text body"),
   cc: z.string().optional().describe("CC recipient"),
+  bcc: z.string().optional().describe("BCC recipient"),
 });
 
 export const updateDraftOutputModel = createDraftOutputModel;

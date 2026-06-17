@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { ComposeEmail } from "~/components/compose-email";
 import { EmailViewer } from "~/components/email-viewer";
-import { parseMessage } from "~/lib/email";
+import { parseMessage, getEmailBodyText } from "~/lib/email";
 
 export default function ThreadPage() {
   const params = useParams<{ threadId: string }>();
@@ -55,11 +55,23 @@ export default function ThreadPage() {
 
   const messages = thread.messages ?? [];
 
-  // Get the subject from the first message's headers for reply
-  const firstMessage = messages[0];
-  const firstParsed = firstMessage ? parseMessage(firstMessage as Record<string, unknown>) : null;
-  const threadSubject = firstParsed?.headers.subject || thread.snippet?.slice(0, 60) || "";
-  const replyTo = firstParsed?.headers.from || "";
+  // Use the most recent message as the basis for the reply.
+  const lastMessage = messages[messages.length - 1];
+  const lastParsed = lastMessage ? parseMessage(lastMessage as Record<string, unknown>) : null;
+  const threadSubject = lastParsed?.headers.subject || thread.snippet?.slice(0, 60) || "";
+  const replyTo = lastParsed?.headers.from || "";
+  const replyToEmail = replyTo.match(/<([^>]+)>/)?.[1] ?? replyTo;
+  const replySubject =
+    threadSubject && !threadSubject.toLowerCase().startsWith("re:")
+      ? `Re: ${threadSubject}`
+      : threadSubject;
+
+  const quotedBody = lastParsed
+    ? `\n\nOn ${lastParsed.headers.date ?? ""}, ${replyTo} wrote:\n${getEmailBodyText(lastParsed)
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n")}`
+    : "";
 
   return (
     <div className="flex flex-col h-full">
@@ -81,8 +93,9 @@ export default function ThreadPage() {
       {showReply && (
         <div className="border-t p-4">
           <ComposeEmail
-            initialTo={replyTo}
-            initialSubject={threadSubject ? `Re: ${threadSubject}` : ""}
+            initialTo={replyToEmail}
+            initialSubject={replySubject}
+            initialBody={quotedBody}
             threadId={params.threadId}
             onSuccess={() => setShowReply(false)}
             onCancel={() => setShowReply(false)}
