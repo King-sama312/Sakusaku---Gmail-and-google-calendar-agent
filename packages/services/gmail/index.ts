@@ -65,13 +65,16 @@ function extractThreadMetadata(thread: {
       headers?: Array<{ name?: string; value?: string }>;
     };
   }>;
-}): { subject?: string; from?: string; labelIds?: string[] } {
+}): { subject?: string; from?: string; labelIds?: string[]; date?: Date } {
   const firstMessage = thread.messages?.[0];
   const headers = firstMessage?.payload?.headers;
+  const dateHeader = extractHeader(headers, "Date");
+  const parsedDate = dateHeader ? new Date(dateHeader) : undefined;
   return {
     subject: extractHeader(headers, "Subject"),
     from: extractHeader(headers, "From"),
     labelIds: firstMessage?.labelIds,
+    date: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : undefined,
   };
 }
 
@@ -156,9 +159,13 @@ class GmailService {
     });
 
     const threads = response.threads ?? [];
+    const enriched = await this.enrichThreadsWithMetadata(userId, threads);
     return {
       ...response,
-      threads: await this.enrichThreadsWithMetadata(userId, threads),
+      threads: enriched.map((t) => ({
+        ...t,
+        date: t.date ? t.date.toISOString() : undefined,
+      })),
     };
   }
 
@@ -179,6 +186,7 @@ class GmailService {
       subject?: string;
       from?: string;
       labelIds?: string[];
+      date?: Date;
     }>,
   ) {
     if (threads.length === 0) return;
@@ -193,6 +201,7 @@ class GmailService {
         snippet: t.snippet ?? null,
         historyId: t.historyId ?? null,
         labelIds: t.labelIds ?? null,
+        date: t.date ?? null,
         updatedAt: new Date(),
       }));
 
@@ -209,6 +218,7 @@ class GmailService {
           snippet: sql`excluded.snippet`,
           historyId: sql`excluded.history_id`,
           labelIds: sql`excluded.label_ids`,
+          date: sql`excluded.date`,
           updatedAt: sql`excluded.updated_at`,
         },
       });
@@ -243,12 +253,16 @@ class GmailService {
         subject: t.subject,
         from: t.from,
         labelIds: t.labelIds,
+        date: t.date,
       })),
     );
 
     return {
       ...response,
-      threads: enriched,
+      threads: enriched.map((t) => ({
+        ...t,
+        date: t.date ? t.date.toISOString() : undefined,
+      })),
     };
   }
 
@@ -263,7 +277,7 @@ class GmailService {
       .select()
       .from(gmailThreadMetadataTable)
       .where(and(...filters))
-      .orderBy(desc(gmailThreadMetadataTable.updatedAt))
+      .orderBy(sql`${gmailThreadMetadataTable.date} DESC NULLS LAST`)
       .limit(limit)
       .offset(offset);
 
@@ -275,6 +289,7 @@ class GmailService {
         subject: t.subject ?? undefined,
         from: t.fromAddress ?? undefined,
         labelIds: t.labelIds ?? undefined,
+        date: t.date ? t.date.toISOString() : undefined,
       })),
       resultSizeEstimate: cached.length,
     };

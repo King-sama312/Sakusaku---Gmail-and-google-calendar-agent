@@ -15,6 +15,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/u
 import { MailNavbar, NAV_ITEMS } from "~/components/mail-navbar";
 import { ComposeEmail } from "~/components/compose-email";
 
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  if (isToday) {
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function InboxPage() {
   const { user, isLoading: isAuthLoading } = useRequireAuth();
   const searchParams = useSearchParams();
@@ -210,11 +220,18 @@ export function InboxPage() {
                   <span className="text-sm font-medium truncate">
                     {thread.subject || "(no subject)"}
                   </span>
-                  {thread.from && (
-                    <span className="text-xs text-muted-foreground truncate shrink-0 max-w-[40%]">
-                      {thread.from}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {thread.date && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(thread.date)}
+                      </span>
+                    )}
+                    {thread.from && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                        {thread.from}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-1">{thread.snippet || ""}</p>
               </Link>

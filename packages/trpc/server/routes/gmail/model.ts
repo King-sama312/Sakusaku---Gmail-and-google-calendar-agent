@@ -18,6 +18,7 @@ export const listThreadsOutputModel = z.object({
         subject: z.string().optional(),
         from: z.string().optional(),
         labelIds: z.array(z.string()).optional(),
+        date: z.string().datetime().optional(),
       }),
     )
     .optional(),
@@ -64,6 +65,7 @@ export const listThreadsFromDbOutputModel = z.object({
         subject: z.string().optional(),
         from: z.string().optional(),
         labelIds: z.array(z.string()).optional(),
+        date: z.string().datetime().optional(),
       }),
     )
     .optional(),

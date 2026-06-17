@@ -16,6 +16,7 @@ export const gmailThreadMetadataTable = pgTable(
     snippet: text("snippet"),
     historyId: text("history_id"),
     labelIds: text("label_ids").array(),
+    date: timestamp("date", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("gmail_metadata_user_thread_idx").on(table.userId, table.threadId)],
