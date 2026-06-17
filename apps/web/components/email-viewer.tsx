@@ -4,10 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-import {
-  parseMessage,
-  getEmailBodyText,
-} from "~/lib/email";
+import { parseMessage, getEmailBodyText } from "~/lib/email";
 
 interface EmailViewerProps {
   message: Record<string, unknown>;
@@ -15,7 +12,7 @@ interface EmailViewerProps {
 }
 
 export function EmailViewer({ message, className }: EmailViewerProps) {
-  const [showHtml, setShowHtml] = useState(false);
+  const [showHtml, setShowHtml] = useState(true);
   const parsed = parseMessage(message);
   const { headers, content, snippet } = parsed;
 
@@ -36,23 +33,15 @@ export function EmailViewer({ message, className }: EmailViewerProps) {
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold truncate">{subject}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-medium text-foreground">
-                {from}
-              </span>
+              <span className="text-sm font-medium text-foreground">{from}</span>
               {date && (
                 <span className="text-xs text-muted-foreground shrink-0">
                   {new Date(date).toLocaleString()}
                 </span>
               )}
             </div>
-            {to && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                To: {to}
-              </p>
-            )}
-            {cc && (
-              <p className="text-xs text-muted-foreground">Cc: {cc}</p>
-            )}
+            {to && <p className="text-xs text-muted-foreground mt-0.5">To: {to}</p>}
+            {cc && <p className="text-xs text-muted-foreground">Cc: {cc}</p>}
           </div>
           {hasHtml && hasPlain && (
             <div className="flex gap-1 shrink-0">

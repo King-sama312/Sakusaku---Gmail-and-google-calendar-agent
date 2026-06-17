@@ -1,23 +1,31 @@
 import { trpc } from "~/trpc/client";
 
-export const useGmailThreads = (input: {
-  q?: string;
-  maxResults?: number;
-  pageToken?: string;
-  labelIds?: string[];
-  includeSpamTrash?: boolean;
-}) => {
+export const useGmailThreads = (
+  input: {
+    q?: string;
+    maxResults?: number;
+    pageToken?: string;
+    labelIds?: string[];
+    includeSpamTrash?: boolean;
+  },
+  options?: { enabled?: boolean },
+) => {
   return trpc.gmail.listThreads.useQuery(input, {
-    enabled: true,
+    enabled: options?.enabled ?? true,
+    placeholderData: (previousData) => previousData,
   });
 };
 
-export const useGmailThreadsFromDb = (input: {
-  limit?: number;
-  offset?: number;
-}) => {
+export const useGmailThreadsFromDb = (
+  input: {
+    limit?: number;
+    offset?: number;
+  },
+  options?: { enabled?: boolean },
+) => {
   return trpc.gmail.listThreadsFromDb.useQuery(input, {
-    enabled: true,
+    enabled: options?.enabled ?? true,
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -49,6 +57,7 @@ export const useSendEmail = () => {
   return trpc.gmail.sendMessage.useMutation({
     onSuccess: () => {
       utils.gmail.listThreads.invalidate();
+      utils.gmail.listThreadsFromDb.invalidate();
       utils.gmail.listDrafts.invalidate();
     },
   });

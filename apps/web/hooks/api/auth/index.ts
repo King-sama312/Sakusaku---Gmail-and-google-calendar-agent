@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 
 export const useGetUserInfo = () => {
@@ -57,3 +59,20 @@ export const useSignOut = () => {
     status,
   };
 };
+
+/**
+ * Redirect unauthenticated users to /login.
+ * Call this at the top of a client page that requires auth.
+ */
+export function useRequireAuth() {
+  const { user, isLoading, isError, isFetched } = useGetUserInfo();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isFetched && (!user || isError)) {
+      router.replace("/login");
+    }
+  }, [isLoading, isFetched, user, isError, router]);
+
+  return { user, isLoading };
+}

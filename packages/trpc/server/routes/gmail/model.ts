@@ -15,6 +15,8 @@ export const listThreadsOutputModel = z.object({
         id: z.string().optional(),
         snippet: z.string().optional(),
         historyId: z.string().optional(),
+        subject: z.string().optional(),
+        from: z.string().optional(),
       }),
     )
     .optional(),
@@ -57,6 +59,8 @@ export const listThreadsFromDbOutputModel = z.object({
         id: z.string().optional(),
         snippet: z.string().optional(),
         historyId: z.string().optional(),
+        subject: z.string().optional(),
+        from: z.string().optional(),
       }),
     )
     .optional(),
