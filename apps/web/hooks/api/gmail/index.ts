@@ -40,30 +40,15 @@ export const useSyncThreadMetadata = () => {
 };
 
 export const useStarThread = () => {
-  const utils = trpc.useUtils();
-  return trpc.gmail.starThread.useMutation({
-    onSuccess: () => {
-      utils.gmail.listThreadsFromDb.invalidate();
-    },
-  });
+  return trpc.gmail.starThread.useMutation();
 };
 
 export const useUnstarThread = () => {
-  const utils = trpc.useUtils();
-  return trpc.gmail.unstarThread.useMutation({
-    onSuccess: () => {
-      utils.gmail.listThreadsFromDb.invalidate();
-    },
-  });
+  return trpc.gmail.unstarThread.useMutation();
 };
 
 export const useTrashThread = () => {
-  const utils = trpc.useUtils();
-  return trpc.gmail.trashThread.useMutation({
-    onSuccess: () => {
-      utils.gmail.listThreadsFromDb.invalidate();
-    },
-  });
+  return trpc.gmail.trashThread.useMutation();
 };
 
 export const useGmailThread = (input: { id: string; format?: "minimal" | "full" | "metadata" }) => {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   useGmailThreadsFromDb,
   useSyncThreadMetadata,
@@ -33,6 +34,16 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+type Thread = {
+  id?: string;
+  snippet?: string;
+  historyId?: string;
+  subject?: string;
+  from?: string;
+  labelIds?: string[];
+  date?: string;
+};
+
 export function InboxPage() {
   const { user, isLoading: isAuthLoading } = useRequireAuth();
   const searchParams = useSearchParams();
@@ -49,18 +60,33 @@ export function InboxPage() {
   const [dbOffset, setDbOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const isReady = !isAuthLoading && !!user;
+  // OPTIMISTIC UI STATE
+  const [optimisticStars, setOptimisticStars] = useState<Record<string, boolean>>({});
+  const [hiddenThreads, setHiddenThreads] = useState<Set<string>>(new Set());
 
-  // Reset pagination when search query, folder, or category changes.
-  useEffect(() => {
-    setDbOffset(0);
-  }, [debouncedQuery, folder, category]);
+  const isReady = !isAuthLoading && !!user;
 
   const syncThreadMetadata = useSyncThreadMetadata();
   const starThread = useStarThread();
   const unstarThread = useUnstarThread();
   const trashThread = useTrashThread();
   const utils = trpc.useUtils();
+
+  const queryInput = {
+    limit: 20,
+    offset: dbOffset,
+    labelIds: selectedLabelId ? [selectedLabelId] : undefined,
+  };
+
+  // Reset pagination and optimistic state when the view changes.
+  // Also invalidate the cache so the new folder always fetches fresh data.
+  useEffect(() => {
+    setDbOffset(0);
+    setOptimisticStars({});
+    setHiddenThreads(new Set());
+    void utils.gmail.listThreadsFromDb.invalidate(queryInput);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, folder, category]);
 
   // Always read from the local metadata cache.
   const {
@@ -69,14 +95,7 @@ export function InboxPage() {
     isFetching: isDbFetching,
     isError: isDbError,
     error: dbError,
-  } = useGmailThreadsFromDb(
-    {
-      limit: 20,
-      offset: dbOffset,
-      labelIds: selectedLabelId ? [selectedLabelId] : undefined,
-    },
-    { enabled: isReady },
-  );
+  } = useGmailThreadsFromDb(queryInput, { enabled: isReady });
 
   // Simple client-side search over cached threads.
   const threads = useMemo(() => {
@@ -91,7 +110,142 @@ export function InboxPage() {
     );
   }, [dbData?.threads, debouncedQuery]);
 
-  const hasNextPage = threads.length === 20;
+  const visibleThreads = useMemo(
+    () => threads.filter((t) => !hiddenThreads.has(t.id ?? "")),
+    [threads, hiddenThreads],
+  );
+
+  const hasNextPage = visibleThreads.length === 20;
+
+  // Update labelIds in the React Query cache for a single thread.
+  const patchThreadLabels = (threadId: string, patch: (labels: string[]) => string[]) => {
+    utils.gmail.listThreadsFromDb.setData(queryInput, (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        threads: (old.threads ?? []).map((t) => {
+          if (t.id !== threadId) return t;
+          return { ...t, labelIds: patch(t.labelIds ? [...t.labelIds] : []) };
+        }),
+      };
+    });
+  };
+
+  const handleStarClick = (thread: Thread) => {
+    const threadId = thread.id ?? "";
+    const currentlyStarred = thread.labelIds?.includes("STARRED") ?? false;
+    const nextStarred = !currentlyStarred;
+    const isStarredFolder = selectedLabelId === "STARRED";
+
+    // 1. Instant visual feedback.
+    setOptimisticStars((prev) => ({ ...prev, [threadId]: nextStarred }));
+    if (!nextStarred && isStarredFolder) {
+      setHiddenThreads((prev) => new Set(prev).add(threadId));
+    }
+
+    // 2. Update the cache immediately so other views stay in sync.
+    patchThreadLabels(threadId, (labels) => {
+      if (nextStarred) {
+        if (!labels.includes("STARRED")) labels.push("STARRED");
+      } else {
+        const idx = labels.indexOf("STARRED");
+        if (idx !== -1) labels.splice(idx, 1);
+      }
+      return labels;
+    });
+
+    // 3. Fire the API call.
+    const mutation = nextStarred ? starThread : unstarThread;
+    mutation.mutate(
+      { threadId },
+      {
+        onError: () => {
+          // Rollback.
+          setOptimisticStars((prev) => {
+            const next = { ...prev };
+            delete next[threadId];
+            return next;
+          });
+          if (!nextStarred && isStarredFolder) {
+            setHiddenThreads((prev) => {
+              const next = new Set(prev);
+              next.delete(threadId);
+              return next;
+            });
+          }
+          patchThreadLabels(threadId, (labels) => {
+            if (currentlyStarred) {
+              if (!labels.includes("STARRED")) labels.push("STARRED");
+            } else {
+              const idx = labels.indexOf("STARRED");
+              if (idx !== -1) labels.splice(idx, 1);
+            }
+            return labels;
+          });
+          toast.error("Failed to update star");
+        },
+        onSuccess: () => {
+          // Cache already matches; clear the override.
+          setOptimisticStars((prev) => {
+            const next = { ...prev };
+            delete next[threadId];
+            return next;
+          });
+          if (!nextStarred && isStarredFolder) {
+            setHiddenThreads((prev) => {
+              const next = new Set(prev);
+              next.delete(threadId);
+              return next;
+            });
+          }
+        },
+      },
+    );
+  };
+
+  const handleTrashClick = (thread: Thread) => {
+    const threadId = thread.id ?? "";
+
+    // 1. Instant visual feedback — hide the row.
+    setHiddenThreads((prev) => new Set(prev).add(threadId));
+
+    // 2. Update the cache immediately.
+    patchThreadLabels(threadId, (labels) => {
+      if (!labels.includes("TRASH")) labels.push("TRASH");
+      const idx = labels.indexOf("INBOX");
+      if (idx !== -1) labels.splice(idx, 1);
+      return labels;
+    });
+
+    // 3. Fire the API call.
+    trashThread.mutate(
+      { threadId },
+      {
+        onError: () => {
+          // Rollback.
+          setHiddenThreads((prev) => {
+            const next = new Set(prev);
+            next.delete(threadId);
+            return next;
+          });
+          patchThreadLabels(threadId, (labels) => {
+            if (!labels.includes("INBOX")) labels.push("INBOX");
+            const idx = labels.indexOf("TRASH");
+            if (idx !== -1) labels.splice(idx, 1);
+            return labels;
+          });
+          toast.error("Failed to move to trash");
+        },
+        onSuccess: () => {
+          setHiddenThreads((prev) => {
+            const next = new Set(prev);
+            next.delete(threadId);
+            return next;
+          });
+        },
+      },
+    );
+  };
 
   const emptyStateMessage = (() => {
     if (folder) {
@@ -204,7 +358,7 @@ export function InboxPage() {
               </a>
             )}
           </div>
-        ) : threads.length === 0 ? (
+        ) : visibleThreads.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
             <p>{emptyStateMessage}</p>
             {selectedLabelId && (
@@ -221,8 +375,11 @@ export function InboxPage() {
                 Updating…
               </div>
             )}
-            {threads.map((thread) => {
-              const isStarred = thread.labelIds?.includes("STARRED");
+            {visibleThreads.map((thread) => {
+              const actualStarred = thread.labelIds?.includes("STARRED") ?? false;
+              const optimisticStar = optimisticStars[thread.id ?? ""];
+              const isStarred = optimisticStar !== undefined ? optimisticStar : actualStarred;
+
               return (
                 <div
                   key={thread.id}
@@ -237,10 +394,15 @@ export function InboxPage() {
                         {thread.subject || "(no subject)"}
                       </span>
                     </Link>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-2 group-hover:hidden">
+                    {/*
+                      HOVER META AREA — fixed-height container with absolutely-positioned children.
+                      The date/from layer defines the geometry. On hover it fades out and the
+                      action-button layer fades in on top, so the row width/height never changes.
+                    */}
+                    <div className="relative flex items-center shrink-0 h-7">
+                      <div className="flex items-center gap-2 h-full pr-0 transition-opacity duration-150 group-hover:opacity-0">
                         {thread.date && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {formatDate(thread.date)}
                           </span>
                         )}
@@ -250,24 +412,22 @@ export function InboxPage() {
                           </span>
                         )}
                       </div>
-                      <div className="hidden group-hover:flex items-center gap-1">
+                      <div className="absolute right-0 top-0 h-full flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (isStarred) {
-                              unstarThread.mutate({ threadId: thread.id ?? "" });
-                            } else {
-                              starThread.mutate({ threadId: thread.id ?? "" });
-                            }
+                            handleStarClick(thread);
                           }}
                         >
                           <Star
                             className={cn(
                               "h-4 w-4",
-                              isStarred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground",
+                              isStarred
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-muted-foreground",
                             )}
                           />
                         </Button>
@@ -277,7 +437,7 @@ export function InboxPage() {
                           className="h-7 w-7"
                           onClick={(e) => {
                             e.stopPropagation();
-                            trashThread.mutate({ threadId: thread.id ?? "" });
+                            handleTrashClick(thread);
                           }}
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -298,16 +458,11 @@ export function InboxPage() {
       </ScrollArea>
 
       <div className="flex items-center justify-between border-t p-3">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={dbOffset === 0}
-          onClick={handlePrevPage}
-        >
+        <Button variant="outline" size="sm" disabled={dbOffset === 0} onClick={handlePrevPage}>
           Previous
         </Button>
         <span className="text-xs text-muted-foreground">
-          {threads.length > 0 ? `${threads.length} conversations` : ""}
+          {visibleThreads.length > 0 ? `${visibleThreads.length} conversations` : ""}
         </span>
         <Button variant="outline" size="sm" disabled={!hasNextPage} onClick={handleNextPage}>
           Next
